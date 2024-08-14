@@ -8,35 +8,39 @@ const UserSchema = new Schema({
   },
   HOTEL_ID: { 
     type: Schema.Types.ObjectId, 
+    ref: 'Hotel', // Giả sử bạn có một mô hình Hotel khác
     required: false 
   },
   EMAIL: { 
     type: String, 
-    required: true 
+    required: true, 
   },
   PHONE_NUMBER: { 
     type: String, 
-    required: true 
+    required: true,
   },
-  PASWORD: { 
+  PASSWORD: { 
     type: String, 
     required: true 
   },
   ROLE: {
     ADMIN: { 
-      type: Boolean 
+      type: Boolean,
+      default: false // Giá trị mặc định
     },
     BRANCH_MANAGER: { 
-      type: Boolean 
+      type: Boolean,
+      default: false // Giá trị mặc định
     },
     STAFF: { 
-      type: Boolean 
+      type: Boolean,
+      default: false // Giá trị mặc định
     },
-    _id: false // Disables the creation of an _id field for this subdocument
+    _id: false // Không tạo trường _id cho subdocument
   },
   ADDRESS: { 
     type: String, 
-    required: true 
+    required: false  
   },
   GENDER: { 
     type: String, 
@@ -47,12 +51,13 @@ const UserSchema = new Schema({
       type: Date 
     },
     CHECK: { 
-      type: Boolean 
+      type: Boolean,
+      default: false // Giá trị mặc định
     },
-    _id: false // Disables the creation of an _id field for this subdocument
+    _id: false // Không tạo trường _id cho subdocument
   }
 },
-{ versionKey: false }
+{ versionKey: false } // Tắt trường __v
 );
 
 const User = mongoose.model("User", UserSchema);

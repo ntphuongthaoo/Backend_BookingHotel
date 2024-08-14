@@ -49,7 +49,7 @@ const HotelSchema = new Schema({
     required: true
   },
   STATE: {
-    type: String,
+    type: Boolean,
     required: true
   },
   PHONE: {
@@ -62,14 +62,24 @@ const HotelSchema = new Schema({
   },
   CREATE_AT: {
     type: Date,
-    required: true
+    default: Date.now
   },
   UPDATE_AT: {
     type: Date,
-    required: true
+    default: Date.now
   }
 }, { 
   versionKey: false 
+});
+
+// Middleware trước khi lưu tài liệu
+HotelSchema.pre('save', function (next) {
+  const now = new Date();
+  this.UPDATE_AT = now;
+  if (!this.CREATE_AT) {
+    this.CREATE_AT = now;
+  }
+  next();
 });
 
 const Hotel = mongoose.model("Hotel", HotelSchema);

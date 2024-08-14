@@ -2,18 +2,26 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const BookingSchema = new Schema({
-  booking_id: {
-    type: Schema.Types.ObjectId,
-    required: true
-  },
+
   USER_ID: {
     type: Schema.Types.ObjectId,
     required: true
   },
-  ROOM_ID: {
-    type: Schema.Types.ObjectId,
-    required: true
-  },
+  ROOMS: [{
+    ROOM_ID: {
+      type: Schema.Types.ObjectId,
+      required: true,
+      ref: 'Room'
+    },
+    START_DATE: {
+      type: Date,
+      required: true
+    },
+    END_DATE: {
+      type: Date,
+      required: true
+    }
+  }],
   CHECKIN_DATE: {
     type: Date,
     required: true
@@ -28,12 +36,32 @@ const BookingSchema = new Schema({
   },
   STATUS: {
     type: String,
-    enum: ['Booked', 'Canceled', 'Completed'],
+    enum: ['Booked', 'CheckedIn', 'Canceled', 'CheckedOut'],
     required: true
   },
   BOOKING_TYPE: {
     type: String,
     enum: ['Calling', 'Email', 'Website', 'Live']
+  },
+  CUSTOMER_PHONE: {
+    type: String,
+    required: true
+  },
+  CUSTOMER_NAME: {
+    type: String,
+    required: true
+  },
+  CITIZEN_ID: {
+    type: String,
+    required: true
+  },
+  START_DATE: {
+    type: Date,
+    required: true
+  },
+  END_DATE: {
+    type: Date,
+    required: true
   },
   CREATE_AT: {
     type: Date,
