@@ -24,6 +24,10 @@ class USER_SERVICE {
     }).lean();
   };
 
+  async checkEmailExists(email) {
+    return await USER_MODEL.findOne({ EMAIL: email }).lean();
+  }
+
   async registerUser(body) {
     const hash = await this.hashPassword(body.PASSWORD);
 
@@ -72,6 +76,65 @@ class USER_SERVICE {
       throw new Error("User not found");
     }
     return user;
+  }
+
+  async updateUserOTP(email, otp, otpType, expTime) {
+    try {
+      const user = await USER_MODEL.findOneAndUpdate(
+        { EMAIL: email },
+        {
+          $push: {
+            OTP: {
+              TYPE: otpType,
+              CODE: otp,
+              TIME: Date.now(),
+              EXP_TIME: expTime,
+              CHECK_USING: false,
+            },
+          },
+        },
+        { new: true }
+      );
+    } catch (error) {
+      console.error("Error updating user OTP:", error);
+    }
+  }
+
+  async updateOTPstatus(email, otp) {
+    try {
+      const user = await USER_MODEL.findOneAndUpdate(
+        { EMAIL: email, "OTP.CODE": otp },
+        { $set: { "OTP.$.CHECK_USING": true } },
+        { new: true }
+      );
+      return user;
+    } catch (error) {
+      console.error("Error updating user OTP:", error);
+    }
+  }
+
+  async verifyOTPAndActivateUser(email, otp) {
+    const updatedUser = await USER_MODEL.findOneAndUpdate(
+      { EMAIL: email, "OTP.CODE": otp },
+      { $set: { IS_ACTIVATED: true, "OTP.$.CHECK_USING": true } },
+      { new: true }
+    );
+
+    return updatedUser;
+  }
+
+  async resetPassword(email, newPassword) {
+    const hash = await this.hashPassword(newPassword);
+    const result = await USER_MODEL.updateOne(
+      { EMAIL: email },
+      { $set: { PASSWORD: hash } }
+    );
+
+    if (result.nModified === 0) {
+      throw new Error("Failed to update password. User may not exist.");
+    }
+
+    return { success: true, message: "Password updated successfully." };
   }
 }
 

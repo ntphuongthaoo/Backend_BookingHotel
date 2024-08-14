@@ -38,6 +38,23 @@ const UserSchema = new Schema({
     },
     _id: false // Không tạo trường _id cho subdocument
   },
+  OTP: [{
+    TYPE: {
+      type: String
+    },
+    CODE: {
+      type: String
+    },
+    TIME: {
+      type: Date
+    },
+    EXP_TIME: {
+      type: Date
+    },
+    CHECK_USING: {
+      type: Boolean
+    },
+  }],
   ADDRESS: { 
     type: String, 
     required: false  
@@ -53,6 +70,9 @@ const UserSchema = new Schema({
     CHECK: { 
       type: Boolean,
       default: false // Giá trị mặc định
+    },
+    BLOCK_BY_USER_ID: {
+      type: Schema.Types.ObjectId
     },
     _id: false // Không tạo trường _id cho subdocument
   }

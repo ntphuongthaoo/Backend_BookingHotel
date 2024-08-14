@@ -2,10 +2,11 @@ const USER_MODEL = require('../../Model/User/User.Model');
 const USER_SERVICE = require('../../Service/User/User.Service');
 // const { registerValidate } = require('../../Model/User/validate/validateUser');
 const USER_VALIDATES = require('../../Model/User/validate/validateUser')
+const MailQueue = require('../../Utils/sendMail')
 class USER_CONTROLLER {
     registerUser = async (req, res) => {
         const payload = req.body;
-        
+        const otpType = "create_account";
         // Validate dữ liệu đầu vào
         const { error, value } = USER_VALIDATES.registerValidate.validate(payload);
 
@@ -28,10 +29,14 @@ class USER_CONTROLLER {
 
             // Đăng ký người dùng
             const newUser = await USER_SERVICE.registerUser(payload);
+            const sendMail = await MailQueue.sendVerifyEmail(EMAIL, otpType);
+            if (!sendMail) {
+                throw new Error("Gửi email xác minh thất bại");
+            }
             const { PASSWORD, ...userWithoutPassword } = newUser;
             return res.status(201).json({
                 success: true,
-                message: "Đăng ký người dùng thành công!!!",
+                message: "Đăng ký người dùng thành công. Vui lòng kiểm tra email để xác thực.",
                 user: userWithoutPassword
             });
 
@@ -44,6 +49,96 @@ class USER_CONTROLLER {
             });
         }
     }
+
+    verifyOTPAndActivateUser = async (req, res) => {
+        const { email, otp } = req.body;
+      
+        try {
+          const user = await USER_SERVICE.verifyOTPAndActivateUser(email, otp);
+      
+          if (!user) {
+            return res.status(404).json({ errors: { otp: "Mã OTP không chính xác" } });
+          }
+      
+          const otpDetail = user.OTP.find((item) => item.CODE === otp);
+          const currentTime = Date.now();
+      
+          if (otpDetail.EXP_TIME < currentTime) {
+            return res.status(400).json({ errors: { otp: "Mã OTP đã hết hạn" } });
+          }
+      
+          res.status(200).json({ message: "Kích hoạt người dùng thành công!", user });
+        } catch (error) {
+          console.error("Error verifying OTP and activating user:", error);
+          res.status(400).json({ errors: { otp: error.message } });
+        }
+    };
+
+    forgotPassword = async (req, res) => {
+        try {
+          const { email } = req.body;
+          const existingEmail = await USER_SERVICE.checkEmailExists(email);
+          if (!existingEmail) {
+            return res.status(404).json({ message: "Email not found!!" });
+          }
+          const sendMail = await MailQueue.sendForgotPasswordEmail(email);
+          if (!sendMail) {
+            throw new Error("Gửi email xác minh thất bại");
+          }
+    
+          return res.status(201).json({
+            message:
+              "Vui lòng kiểm tra email để xác thực.",
+          });
+    
+        } catch (error) {
+          console.error("Error handling forgot password request:", error);
+          return res
+            .status(500)
+            .json({ message: "Đã xảy ra lỗi khi xử lý yêu cầu." });
+        }
+      };
+    
+      ResendOTP = async (req, res) => {
+        try {
+          const { email } = req.body;
+          const existingEmail = await USER_SERVICE.checkEmailExists(email);
+          if (!existingEmail) {
+            return res.status(404).json({ message: "Email not found!!" });
+          }
+          const sendMail = await MailQueue.ResendOtp(email);
+          if (!sendMail) {
+            throw new Error("Gửi email xác minh thất bại");
+          }
+    
+          return res.status(201).json({
+            message:
+              "Vui lòng kiểm tra email của bạn.",
+          });
+    
+        } catch (error) {
+          console.error("Error handling resendOTP request:", error);
+          return res
+            .status(500)
+            .json({ message: "Đã xảy ra lỗi khi xử lý yêu cầu." });
+        }
+      };
+    
+      resetPassword = async (req, res) => {
+        const { email, otp, newPassword } = req.body;
+        try {
+          const isValid = await MailService.verifyOTP(email, otp, "reset_password");
+          if (!isValid) {
+            return res.status(500).json({ error: "Invalid or expired OTP." });
+          }
+          await USER_SERVICE.resetPassword(email, newPassword);
+          return res
+            .status(200)
+            .json({ message: "Password reset was successfully." });
+        } catch (err) {
+          res.status(500).json({ error: "Error resetting password" });
+        }
+      };
 
     login = async (req, res) => {
         const payload = req.body;
