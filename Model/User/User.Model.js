@@ -75,7 +75,10 @@ const UserSchema = new Schema({
       type: Schema.Types.ObjectId
     },
     _id: false // Không tạo trường _id cho subdocument
-  }
+  },
+  IS_ACTIVATED: {
+    type: Boolean
+  },
 },
 { versionKey: false } // Tắt trường __v
 );
