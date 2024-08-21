@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
+const MetadataRoom = require("../MetadataRoom/MetadataRoom")
 
 const AvailabilitySchema = new Schema({
   DATE: {
@@ -12,6 +13,19 @@ const AvailabilitySchema = new Schema({
   },
   _id: false // Disable the creation of an _id field for this subdocument
 });
+
+const ImageSchema = new Schema({
+  path: { 
+    type: String, 
+    required: true // Đường dẫn tới file ảnh trên máy chủ hoặc URL 
+  },
+  description: { 
+    type: String 
+  },
+  order: { 
+    type: Number 
+  }
+}, { _id: false });
 
 const RoomSchema = new Schema({
   HOTEL_ID: { 
@@ -28,35 +42,27 @@ const RoomSchema = new Schema({
     required: true 
   },
   PRICE_PERNIGHT: { 
-    type: String, 
+    type: Number,  
     required: true 
   },
   DESCRIPTION: { 
     type: String 
   },
-  IMAGES: [{ 
-    type: String 
-  }],
-  AMENITIES: [{ 
-    type: String 
-  }],
+  IMAGES: [ImageSchema],
+
   AVAILABILITY: [AvailabilitySchema], // Thêm lịch trống vào schema
   
   CUSTOM_ATTRIBUTES: {
-    type: Map,
-    of: Schema.Types.Mixed
-  },
-  CREATE_AT: { 
-    type: Date, 
-    default: Date.now 
-  },
-  UPDATE_AT: { 
-    type: Date, 
-    default: Date.now 
-  },
-  REQUIRES_ONLINE_PAYMENT: { 
-    type: Boolean, 
-    required: true 
+    bedType: { 
+      type: String 
+    },
+    view: { 
+      type: String 
+    },
+    others: {
+      type: Map,
+      of: Schema.Types.Mixed
+    }
   },
   DEPOSIT_PERCENTAGE: { 
     type: Number, 
@@ -66,8 +72,26 @@ const RoomSchema = new Schema({
     type: Number 
   }
 }, { 
-  versionKey: false 
+  versionKey: false,
+  timestamps: true
 });
+
+  RoomSchema.post('save', async function (doc, next) {
+    try {
+      const newMetadataRoom = new MetadataRoom({
+        ROOM_ID: doc._id,
+        TOTAL_BOOKINGS: 0, 
+        TOTAL_REVIEWS: 0,  
+        AVERAGE_RATING: 0, 
+        PENDING_BOOKINGS: 0 
+      });
+      
+      await newMetadataRoom.save(); 
+      next();
+    } catch (error) {
+      next(error);
+    }
+  });
 
 const Room = mongoose.model("Room", RoomSchema);
 

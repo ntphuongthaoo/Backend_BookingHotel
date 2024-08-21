@@ -43,6 +43,71 @@ class HOTEL_CONTROLLER {
             return res.status(500).json({ message: "Lỗi khi cập nhật khách sạn!!"})
         }
     }
+
+    deleteHotel = async (req, res) => {
+        try {
+            const { hotelId } = req.params;
+
+            if(!hotelId) {
+                return res.status(404).json({ message: "HoetleId là bắt buộc." });
+            }
+            const result = await HOTEL_SERVICE.deleteHotel(hotelId);
+            return res.status(200).json({ 
+                message:"Xóa khách sạn thành công!!",
+                data: result
+            });
+
+        }catch (err) {
+            return res.status(500).json({ message: "Lỗi khi xóa khách sạn!!"})
+        }
+    }
+
+    getHotelsAndSearch = async (req, res) => {
+        try {
+          const { tabStatus, page = 1, limit = 10, search = "" } = req.query;
+  
+          const result = await HOTEL_SERVICE.getHotelsAndSearch(
+            tabStatus,
+            parseInt(page, 10),
+            parseInt(limit, 10),
+            search
+          );
+  
+          res.status(200).json({
+            success: true,
+            data: result.hotels,
+            totalPages: result.totalPages,
+            totalCount: result.totalCount
+          });
+        } catch (err) {
+          res.status(500).json({
+            success: false,
+            message: 'Lỗi khi truy vấn người dùng.',
+            error: err.message
+          });
+        }
+    };
+
+    // searchHotels = async (req, res) => {
+    //     try {
+    //         const { name = "", address = "", provinceCode = "" } = req.query;
+    
+    //         const result = await HOTEL_SERVICE.searchHotels(name, address, provinceCode);
+    
+    //         res.status(200).json({
+    //             success: true,
+    //             data: result.hotels,
+    //             totalPages: result.totalPages,
+    //             totalCount: result.totalCount
+    //         });
+    //     } catch (err) {
+    //         res.status(500).json({
+    //             success: false,
+    //             message: 'Lỗi khi tìm kiếm khách sạn.',
+    //             error: err.message
+    //         });
+    //     }
+    // };
 }
 
 module.exports = new HOTEL_CONTROLLER();

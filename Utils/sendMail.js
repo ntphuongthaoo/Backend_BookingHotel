@@ -502,7 +502,7 @@ class MailQueue {
     async sendMail(email, otp, otpType) {
         try {
             await this.transporter.sendMail({
-                from: `"Noreply" <${process.env.EMAIL_USERNAME}>`,
+                from: `"KHÁCH SẠN ETHEREAL" <${process.env.EMAIL_USERNAME}>`,
                 to: email,
                 subject: "OTP Verification",
                 html: await this.HTML_TEMPLATE(otp, otpType)

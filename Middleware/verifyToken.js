@@ -33,6 +33,7 @@ const verifyTokenAdmin = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
     const user_info = await USER_SERVICE.getUserInfo(decoded.userId);
+    req.user = user_info;
     console.log(user_info);
 
     if (!user_info) {
@@ -44,7 +45,6 @@ const verifyTokenAdmin = async (req, res, next) => {
       return res.status(403).json({ error: 'Access denied. Admins only.' });
     }
 
-    req.user = user_info;
     next();
   } catch (err) {
     return res.status(401).json({ message: 'Invalid token.' });
