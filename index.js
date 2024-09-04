@@ -1,12 +1,27 @@
 const express = require('express');
 const bodyParser = require("body-parser");
 const app = express();
-const port = 3000;
+// const port = 3000;
+const cors = require("cors");
+const axios = require('axios');
+
 
 const dbConnect = require('./Config/dbconnect');
 const route = require('./Router'); 
 
+const port = process.env.PORT || 3000;
+
+
 dbConnect();
+
+// Cấu hình CORS
+app.use(cors({
+  origin: ["http://localhost:3000", "http://localhost:3001"],
+  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"], 
+  credentials: true,
+  optionsSuccessStatus: 204,
+  allowedHeaders: ["Content-Type", "Authorization"], // Cải thiện với dạng mảng
+}));
 
 app.use(express.json());
 

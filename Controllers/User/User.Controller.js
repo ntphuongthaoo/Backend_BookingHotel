@@ -28,10 +28,13 @@ class USER_CONTROLLER {
         PHONE_NUMBER
       );
       if (checkUserExists) {
-        return res
-          .status(400)
-          .json({ message: "Email hoặc số điện thoại đã tồn tại." });
-      }
+        return res.status(400).json({
+          errors: {
+            EMAIL: "Email đã tồn tại",
+            PHONE_NUMBER: "Số điện thoại đã tồn tại",
+          },
+        });
+      }      
 
       // Đăng ký người dùng
       const newUser = await USER_SERVICE.registerUser(payload);
@@ -75,9 +78,12 @@ class USER_CONTROLLER {
         return res.status(400).json({ errors: { otp: "Mã OTP đã hết hạn" } });
       }
 
-      res
-        .status(200)
-        .json({ message: "Kích hoạt người dùng thành công!", user });
+      return res
+        .status(201)
+        .json({ 
+          success: true,
+          message: "Kích hoạt người dùng thành công!", 
+          user });
     } catch (error) {
       console.error("Error verifying OTP and activating user:", error);
       res.status(400).json({ errors: { otp: error.message } });
@@ -195,7 +201,7 @@ class USER_CONTROLLER {
       return res.status(200).json({
         success: true,
         accessToken: accessToken,
-        message: user,
+        user,
       });
     } catch (err) {
       console.error("Error logging in:", err);
@@ -311,6 +317,47 @@ class USER_CONTROLLER {
       res.status(200).json(user);
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  };
+
+  editUser = async (req, res) => {
+    const { userId } = req.params;
+    const payload = req.body;
+    console.log("la " + userId);
+    try {
+      const updatedUser = await USER_SERVICE.editUser(userId, payload);
+
+      if (payload.EMAIL && payload.EMAIL !== updatedUser.EMAIL) {
+        const otpType = "update_email";
+        const sendMail = await MailQueue.sendVerifyEmail(
+          payload.EMAIL,
+          otpType
+        );
+
+        if (!sendMail) {
+          throw new Error("Gửi email xác minh thất bại");
+        }
+
+        return res.status(200).json({
+          success: true,
+          message:
+            "Thông tin người dùng đã được cập nhật. Vui lòng kiểm tra email để xác thực.",
+          user: updatedUser,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Thông tin người dùng đã được cập nhật thành công.",
+        user: updatedUser,
+      });
+    } catch (error) {
+      console.error("Error editing user:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Đã xảy ra lỗi khi cập nhật thông tin người dùng.",
+        error: error.message,
+      });
     }
   };
 }

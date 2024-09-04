@@ -40,7 +40,6 @@ class USER_SERVICE {
         BRANCH_MANAGER: false,
         STAFF: false,
       },
-      GENDER: body.GENDER,
       IS_BLOCKED: null,
       IS_ACTIVATED: false,
     });
@@ -237,6 +236,40 @@ class USER_SERVICE {
     );
 
     return foundUser;
+  }
+
+  async editUser(userId, data) {
+      const user = await USER_MODEL.findById(userId);
+      console.log(userId);
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      if (data.EMAIL && data.EMAIL !== user.EMAIL) {
+        user.EMAIL = data.EMAIL;
+        user.IS_ACTIVATED = false;
+      }
+
+      if (!data.EMAIL && data.CURRENT_PASSWORD) {
+        const isPasswordValid = await this.checkPassword(
+          data.CURRENT_PASSWORD,
+          user.PASSWORD
+        );
+        if (!isPasswordValid) {
+          throw new Error("Mật khẩu hiện tại không chính xác");
+        }
+      }
+
+      const fieldsToUpdate = ["FULLNAME", "PHONE_NUMBER", "ADDRESS", "GENDER"];
+      fieldsToUpdate.forEach((field) => {
+        if (data[field]) {
+          user[field] = data[field];
+        }
+      });
+
+      await user.save();
+
+      return user.toObject();
   }
 }
 
