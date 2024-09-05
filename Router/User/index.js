@@ -14,6 +14,11 @@ router.get('/getUsers',verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER', 'S
 router.post('/blockUser', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), USER_CONTROLLER.blockUser);
 router.post('/logout', USER_CONTROLLER.logout);
 router.put('/updateUser/:userId', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), USER_CONTROLLER.editUser);
+router.get('/info',verifyToken,USER_CONTROLLER.getUserById);
+
+router.get('/profile', verifyToken, (req, res) => {
+    return res.json(req.user); // Trả về thông tin người dùng đã được xác thực
+});
 
 
 module.exports = router;
