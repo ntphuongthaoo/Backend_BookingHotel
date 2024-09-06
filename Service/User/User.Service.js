@@ -70,12 +70,12 @@ class USER_SERVICE {
   };
   // Hàm cấp phát lại refresh token
   resetRefreshToken = async (oldRefreshToken) => {
-      const secret = process.env.REFRESH_TOKEN_SECRET;
-      const decoded = jwt.verify(oldRefreshToken, secret);
+    const secret = process.env.REFRESH_TOKEN_SECRET;
+    const decoded = jwt.verify(oldRefreshToken, secret);
 
-      // Tạo một refresh token mới
-      const newRefreshToken = generateRefreshToken(decoded.userId);
-      return newRefreshToken;
+    // Tạo một refresh token mới
+    const newRefreshToken = generateRefreshToken(decoded.userId);
+    return newRefreshToken;
   };
 
   login = async (payload) => {
@@ -156,33 +156,35 @@ class USER_SERVICE {
   }
 
   async getUsers(tabStatus, page, limit, search = "") {
-    let query = {};
+    // Xây dựng giai đoạn $match dựa trên tabStatus
+    let matchStage = {};
 
     switch (tabStatus) {
       case "1":
         // Người dùng chưa kích hoạt hoặc không bị chặn
-        query = {
+        matchStage = {
           $or: [{ IS_ACTIVATED: false }, { "IS_BLOCKED.CHECK": { $ne: true } }],
         };
         break;
       case "2":
         // Người dùng đã kích hoạt và không bị chặn
-        query = { IS_ACTIVATED: true, "IS_BLOCKED.CHECK": { $ne: true } };
+        matchStage = { IS_ACTIVATED: true, "IS_BLOCKED.CHECK": { $ne: true } };
         break;
       case "3":
         // Người dùng bị chặn
-        query = { "IS_BLOCKED.CHECK": true };
+        matchStage = { "IS_BLOCKED.CHECK": true };
         break;
       case "4":
         // Tất cả người dùng
-        query = {};
+        matchStage = {};
         break;
       default:
-        throw new Error("Invalid tab status");
+        throw new Error("Tab status không hợp lệ");
     }
 
+    // Nếu có từ khóa tìm kiếm, thêm điều kiện vào giai đoạn $match
     if (search) {
-      query.$or = [
+      matchStage.$or = [
         { FULLNAME: { $regex: new RegExp(search, "i") } },
         { EMAIL: { $regex: new RegExp(search, "i") } },
         { PHONE_NUMBER: { $regex: new RegExp(search, "i") } },
@@ -190,22 +192,23 @@ class USER_SERVICE {
     }
 
     try {
-      const totalCount = await USER_MODEL.countDocuments(query);
+      const aggregatePipeline = [
+        { $match: matchStage },
+        {
+          $facet: {
+            totalCount: [{ $count: "count" }],
+            users: [{ $skip: (page - 1) * limit }, { $limit: limit }],
+          },
+        },
+      ];
+
+      const result = await USER_MODEL.aggregate(aggregatePipeline).exec();
+
+      const totalCount =
+        result[0].totalCount.length > 0 ? result[0].totalCount[0].count : 0;
+      const users = result[0].users;
+
       const totalPages = Math.ceil(totalCount / limit);
-      const offset = (page - 1) * limit;
-
-      const users = await USER_MODEL.find(query)
-        .skip(offset)
-        .limit(limit)
-        .lean(); // Sử dụng lean() để nhận về plain JavaScript objects
-
-      if (users.length === 0) {
-        return {
-          users: [],
-          totalPages: 0,
-          totalCount: 0,
-        };
-      }
 
       return {
         users,
@@ -213,7 +216,7 @@ class USER_SERVICE {
         totalCount,
       };
     } catch (error) {
-      console.error("Error querying users:", error);
+      console.error("Lỗi khi truy vấn người dùng:", error);
       throw new Error("Lỗi khi truy vấn người dùng");
     }
   }
@@ -239,37 +242,37 @@ class USER_SERVICE {
   }
 
   async editUser(userId, data) {
-      const user = await USER_MODEL.findById(userId);
-      console.log(userId);
-      if (!user) {
-        throw new Error("User not found");
+    const user = await USER_MODEL.findById(userId);
+    console.log(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (data.EMAIL && data.EMAIL !== user.EMAIL) {
+      user.EMAIL = data.EMAIL;
+      user.IS_ACTIVATED = false;
+    }
+
+    if (!data.EMAIL && data.CURRENT_PASSWORD) {
+      const isPasswordValid = await this.checkPassword(
+        data.CURRENT_PASSWORD,
+        user.PASSWORD
+      );
+      if (!isPasswordValid) {
+        throw new Error("Mật khẩu hiện tại không chính xác");
       }
+    }
 
-      if (data.EMAIL && data.EMAIL !== user.EMAIL) {
-        user.EMAIL = data.EMAIL;
-        user.IS_ACTIVATED = false;
+    const fieldsToUpdate = ["FULLNAME", "PHONE_NUMBER", "ADDRESS", "GENDER"];
+    fieldsToUpdate.forEach((field) => {
+      if (data[field]) {
+        user[field] = data[field];
       }
+    });
 
-      if (!data.EMAIL && data.CURRENT_PASSWORD) {
-        const isPasswordValid = await this.checkPassword(
-          data.CURRENT_PASSWORD,
-          user.PASSWORD
-        );
-        if (!isPasswordValid) {
-          throw new Error("Mật khẩu hiện tại không chính xác");
-        }
-      }
+    await user.save();
 
-      const fieldsToUpdate = ["FULLNAME", "PHONE_NUMBER", "ADDRESS", "GENDER"];
-      fieldsToUpdate.forEach((field) => {
-        if (data[field]) {
-          user[field] = data[field];
-        }
-      });
-
-      await user.save();
-
-      return user.toObject();
+    return user.toObject();
   }
 }
 
