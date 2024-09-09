@@ -62,29 +62,48 @@ class HOTEL_CONTROLLER {
         }
     }
 
+    async getAllHotels(req, res) {
+        try {
+          const hotels = await HOTEL_SERVICE.getAllHotels();
+          return res.status(200).json({
+            success: true,
+            data: hotels})
+            
+        } catch (error) {
+          return res.status(500).json({ 
+            success: false,
+            message: 'Internal Server Error', error: error.message });
+        }
+      }
+
     getHotelsAndSearch = async (req, res) => {
         try {
-          const { tabStatus, page = 1, limit = 10, search = "" } = req.query;
-  
-          const result = await HOTEL_SERVICE.getHotelsAndSearch(
-            tabStatus,
-            parseInt(page, 10),
-            parseInt(limit, 10),
-            search
-          );
-  
-          res.status(200).json({
-            success: true,
-            data: result.hotels,
-            totalPages: result.totalPages,
-            totalCount: result.totalCount
-          });
+            const { tabStatus, page = 1, limit = 10, search = "" } = req.query;
+            
+            // Lấy userRole từ yêu cầu, ví dụ từ token hoặc từ một nơi nào đó
+            const userRole = req.user.ROLE; // Giả sử bạn đã lưu thông tin người dùng vào req.user từ middleware xác thực
+    
+            // Gọi dịch vụ để lấy dữ liệu khách sạn
+            const result = await HOTEL_SERVICE.getHotelsAndSearch(
+                tabStatus,
+                parseInt(page, 10),
+                parseInt(limit, 10),
+                search,
+                userRole // Truyền userRole vào phương thức dịch vụ
+            );
+      
+            res.status(200).json({
+                success: true,
+                data: result.hotels,
+                totalPages: result.totalPages,
+                totalCount: result.totalCount
+            });
         } catch (err) {
-          res.status(500).json({
-            success: false,
-            message: 'Lỗi khi truy vấn người dùng.',
-            error: err.message
-          });
+            res.status(500).json({
+                success: false,
+                message: 'Lỗi khi truy vấn khách sạn.',
+                error: err.message
+            });
         }
     };
 

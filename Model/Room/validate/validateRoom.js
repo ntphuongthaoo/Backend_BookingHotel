@@ -84,11 +84,11 @@ class ROOM_VALIDATED {
             'number.max': `"DEPOSIT_PERCENTAGE" phải nằm trong khoảng từ 0 đến 100`,
             'any.required': `"DEPOSIT_PERCENTAGE" là trường bắt buộc`
         }),
-        DISCOUNT: Joi.number().min(0).max(100).optional().messages({
-            'number.base': `"DISCOUNT" phải là một số`,
-            'number.min': `"DISCOUNT" phải nằm trong khoảng từ 0 đến 100`,
-            'number.max': `"DISCOUNT" phải nằm trong khoảng từ 0 đến 100`
-        })
+        // DISCOUNT: Joi.number().min(0).max(100).optional().messages({
+        //     'number.base': `"DISCOUNT" phải là một số`,
+        //     'number.min': `"DISCOUNT" phải nằm trong khoảng từ 0 đến 100`,
+        //     'number.max': `"DISCOUNT" phải nằm trong khoảng từ 0 đến 100`
+        // })
     });
 }
 

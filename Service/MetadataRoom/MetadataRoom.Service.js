@@ -1,26 +1,26 @@
 const MetadataHotel = require('../../Model/MetadataHotel/MetadataHotel');
 
 class MetadataRoomService {
-  async updateMetadataAfterRoomAdded(hotelId, roomType) {
+  async updateMetadataHotelAfterRoomAdded(hotelId, roomType, quantity) {
     try {
       // Tìm MetadataHotel dựa trên hotelId
       const metadata = await MetadataHotel.findOne({ HOTEL_ID: hotelId });
 
       if (metadata) {
         // Tăng tổng số phòng
-        metadata.TOTAL_ROOMS += 1;
+        metadata.TOTAL_ROOMS += quantity;
 
         // Cập nhật theo loại phòng
         if (roomType === 'Single') {
-          metadata.TOTAL_ROOM_SINGLES += 1;
+          metadata.TOTAL_ROOM_SINGLES += quantity;
         } else if (roomType === 'Double') {
-          metadata.TOTAL_ROOM_DOUBLES += 1;
+          metadata.TOTAL_ROOM_DOUBLES += quantity;
         } else if (roomType === 'Suite') {
-          metadata.TOTAL_ROOM_SUITES += 1;
+          metadata.TOTAL_ROOM_SUITES += quantity;
         }
 
         // Tăng số lượng phòng có sẵn
-        metadata.AVAILABLE_ROOMS += 1;
+        metadata.AVAILABLE_ROOMS += quantity;
 
         // Lưu thay đổi
         await metadata.save();

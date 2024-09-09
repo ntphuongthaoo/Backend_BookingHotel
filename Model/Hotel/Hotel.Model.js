@@ -33,9 +33,6 @@ const AddressSchema = new Schema({
       required: true
     }
   },
-  DESCRIPTION: {
-    type: String
-  },
   _id: false
 });
 
@@ -61,10 +58,16 @@ const HotelSchema = new Schema({
     type: String,
     required: true
   },
+  DESCRIPTION: {
+    type: String
+  },
   IS_DELETED: {
     type: Boolean,
     default: false
-  }
+  },
+  IMAGE: {
+    type: [String], // Lưu URL hoặc đường dẫn hình ảnh
+  },
 }, { 
   versionKey: false,
   timestamps: true // Tự động thêm createdAt và updatedAt

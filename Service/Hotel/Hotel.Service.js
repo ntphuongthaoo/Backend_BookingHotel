@@ -30,33 +30,38 @@ class HOTEL_SERVICE {
         return result.toObject();           
     }
 
-    async getHotelsAndSearch(tabStatus, page, limit, search = "") {
-        let query = {};
+    async getAllHotels() {
+          // Tìm tất cả các khách sạn
+          const hotels = await HOTEL_MODEL.find({});
+          return hotels;
+    }
+
+    async getHotelsAndSearch(tabStatus, page, limit, search = "", userRole = "") {
+        // Xây dựng query cơ bản
+        let matchStage = {};
+        let matchDeletedStage = {}; // Để lọc khách sạn đã bị xóa
     
         switch (tabStatus) {
             case "1":
-                // Khách sạn đang hoạt động
-                query = { STATE: true, IS_DELETED: false };
+                matchStage = { STATE: true, IS_DELETED: false };
                 break;
             case "2":
-                // Khách sạn không hoạt động
-                query = { STATE: false, IS_DELETED: false };
+                matchStage = { STATE: false, IS_DELETED: false };
                 break;
             case "3":
-                // Khách sạn bị xóa (IS_DELETED = true)
-                query = { IS_DELETED: true };
+                matchDeletedStage = { IS_DELETED: true };
                 break;
             case "4":
-                // Tất cả khách sạn
-                // query = { IS_DELETED: false }; // Chỉ lấy những khách sạn chưa bị xóa
-                query = {};
+                matchStage = {};
+                matchDeletedStage = {};
                 break;
             default:
                 throw new Error("Invalid tab status");
         }
     
+        // Điều kiện tìm kiếm chung
         if (search) {
-            query.$or = [
+            matchStage.$or = [
                 { NAME: { $regex: new RegExp(search, "i") } },
                 { "ADDRESS.PROVINCE.NAME": { $regex: new RegExp(search, "i") } },
                 { "ADDRESS.DISTRICT.NAME": { $regex: new RegExp(search, "i") } },
@@ -65,87 +70,50 @@ class HOTEL_SERVICE {
         }
     
         try {
-            const totalCount = await HOTEL_MODEL.countDocuments(query);
-            const totalPages = Math.ceil(totalCount / limit);
+            // Đếm tổng số tài liệu
+            let totalCount = 0;
+            if (Object.keys(matchStage).length > 0) {
+                totalCount = await HOTEL_MODEL.aggregate([
+                    { $match: matchStage },
+                    { $count: "totalCount" }
+                ]);
+            } else if (Object.keys(matchDeletedStage).length > 0 && (userRole === 'ADMIN' || userRole === 'BRANCH_MANAGER')) {
+                totalCount = await HOTEL_MODEL.aggregate([
+                    { $match: matchDeletedStage },
+                    { $count: "totalCount" }
+                ]);
+            }
+            
+            const totalCountValue = totalCount.length > 0 ? totalCount[0].totalCount : 0;
+            const totalPages = Math.ceil(totalCountValue / limit);
             const offset = (page - 1) * limit;
     
-            const hotels = await HOTEL_MODEL.find(query)
-                .skip(offset)
-                .limit(limit)
-                .lean(); // Sử dụng lean() để nhận về plain JavaScript objects
-    
-            if (hotels.length === 0) {
-                return {
-                    hotels: [],
-                    totalPages: 0,
-                    totalCount: 0,
-                };
+            // Truy vấn khách sạn
+            let hotels = [];
+            if (Object.keys(matchStage).length > 0) {
+                hotels = await HOTEL_MODEL.aggregate([
+                    { $match: matchStage },
+                    { $skip: offset },
+                    { $limit: limit }
+                ]).exec();
+            } else if (Object.keys(matchDeletedStage).length > 0 && (userRole === 'ADMIN' || userRole === 'BRANCH_MANAGER')) {
+                hotels = await HOTEL_MODEL.aggregate([
+                    { $match: matchDeletedStage },
+                    { $skip: offset },
+                    { $limit: limit }
+                ]).exec();
             }
     
             return {
                 hotels,
                 totalPages,
-                totalCount,
+                totalCount: totalCountValue
             };
         } catch (error) {
             console.error("Error querying hotels:", error);
             throw new Error("Lỗi khi truy vấn khách sạn");
         }
-    }
-
-    // async searchHotels(page, limit, name = "", address = "", provinceCode = "") {
-    //     let query = { IS_DELETED: false }; // Chỉ lấy khách sạn chưa bị xóa
-    
-    //     const andConditions = [];
-    
-    //     // Điều kiện tìm kiếm theo tên khách sạn
-    //     if (name) {
-    //         andConditions.push({ NAME: { $regex: new RegExp(name, "i") } });
-    //     }
-    
-    //     // Điều kiện tìm kiếm theo địa chỉ
-    //     if (address) {
-    //         andConditions.push({
-    //             $or: [
-    //                 { "ADDRESS.DESCRIPTION": { $regex: new RegExp(address, "i") } },
-    //                 { "ADDRESS.PROVINCE.NAME": { $regex: new RegExp(address, "i") } },
-    //                 { "ADDRESS.DISTRICT.NAME": { $regex: new RegExp(address, "i") } },
-    //                 { "ADDRESS.WARD.NAME": { $regex: new RegExp(address, "i") } }
-    //             ]
-    //         });
-    //     }
-    
-    //     // Điều kiện tìm kiếm theo mã vùng
-    //     if (provinceCode) {
-    //         andConditions.push({ "ADDRESS.PROVINCE.CODE": provinceCode });
-    //     }
-    
-    //     // Kết hợp tất cả các điều kiện trong một truy vấn
-    //     if (andConditions.length > 0) {
-    //         query.$and = andConditions;
-    //     }
-    
-    //     try {
-    //         const totalCount = await HOTEL_MODEL.countDocuments(query);
-    //         const totalPages = Math.ceil(totalCount / limit);
-    //         const offset = (page - 1) * limit;
-    
-    //         const hotels = await HOTEL_MODEL.find(query)
-    //             .skip(offset)
-    //             .limit(limit)
-    //             .lean(); // Sử dụng lean() để nhận về plain JavaScript objects
-    
-    //         return {
-    //             hotels,
-    //             totalPages,
-    //             totalCount
-    //         };
-    //     } catch (error) {
-    //         console.error("Error searching hotels:", error);
-    //         throw new Error("Lỗi khi tìm kiếm khách sạn");
-    //     }
-    // }
-    
+    }    
     
 }
 

@@ -76,9 +76,13 @@ const RoomSchema = new Schema(
       type: Number,
       required: true,
     },
-    DISCOUNT: {
-      type: Number,
-    },
+    IS_DELETED: {
+      type: Boolean,
+      default: false
+    }
+    // DISCOUNT: {
+    //   type: Number,
+    // },
   },
   {
     versionKey: false,

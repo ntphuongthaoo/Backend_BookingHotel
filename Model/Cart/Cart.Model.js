@@ -7,32 +7,39 @@ const CartSchema = new Schema({
     required: true,
     ref: 'User' // Tham chiếu đến collection User
   },
-  LIST_ROOM_REF: [{
-    ROOM_ID: {
+  LIST_ROOMS: [{
+    HOTEL_ID: {
       type: Schema.Types.ObjectId,
       required: true,
-      ref: 'Room' // Tham chiếu đến collection Room
+      ref: 'Hotel'
     },
-    START_DATE: {
-      type: Date,
-      required: true
-    },
-    END_DATE: {
-      type: Date,
-      required: true
-    }
+    ROOMS: [{
+      ROOM_ID: {
+        type: Schema.Types.ObjectId,
+        required: true,
+        ref: 'Room'
+      },
+      START_DATE: {
+        type: Date,
+        required: true
+      },
+      END_DATE: {
+        type: Date,
+        required: true
+      },
+      TOTAL_PRICE_FOR_ROOM: {
+        type: Number,
+        default: 0
+      },
+    }],
   }],
   LIST_ROOM_MAX_NUMBER: {
     type: Number,
     required: true
   },
-  CREATE_AT: {
-    type: Date,
-    default: Date.now,
-    required: true
-  }
 }, {
-  versionKey: false
+  versionKey: false,
+  timestamps: true,
 });
 
 const Cart = mongoose.model('Cart', CartSchema);

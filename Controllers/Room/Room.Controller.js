@@ -32,6 +32,31 @@ class ROOM_CONTROLLER {
       });
     }
   }
+
+  async deleteRoom(req, res) {
+    try {
+      const roomId = req.params.roomId;
+
+      // Xóa phòng khỏi cơ sở dữ liệu
+      const room = await RoomService.deleteRoom(roomId);
+
+      if (room) {
+        const hotelId = room.HOTEL_ID;
+        const roomType = room.TYPE;
+
+        // Cập nhật MetadataHotel sau khi phòng bị xóa
+        await MetadataRoomService.updateMetadataAfterRoomRemoved(hotelId, roomType);
+      }
+
+      return res.status(200).json({
+        message: 'Room deleted successfully'
+      });
+    } catch (error) {
+      return res.status(500).json({
+        message: 'Error deleting room: ' + error.message
+      });
+    }
+  }
 }
 
 module.exports = new ROOM_CONTROLLER();
