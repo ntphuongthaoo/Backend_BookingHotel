@@ -14,22 +14,6 @@ const AvailabilitySchema = new Schema({
   _id: false, // Disable the creation of an _id field for this subdocument
 });
 
-const ImageSchema = new Schema(
-  {
-    path: {
-      type: String,
-      required: true, // Đường dẫn tới file ảnh trên máy chủ hoặc URL
-    },
-    description: {
-      type: String,
-    },
-    order: {
-      type: Number,
-    },
-  },
-  { _id: false }
-);
-
 const RoomSchema = new Schema(
   {
     HOTEL_ID: {
@@ -56,7 +40,9 @@ const RoomSchema = new Schema(
     DESCRIPTION: {
       type: String,
     },
-    IMAGES: [ImageSchema],
+    IMAGES: {
+      type: [String],
+    },
 
     AVAILABILITY: [AvailabilitySchema], // Thêm lịch trống vào schema
 
@@ -65,6 +51,9 @@ const RoomSchema = new Schema(
         type: String,
       },
       view: {
+        type: String,
+      },
+      amenities: {
         type: String,
       },
       others: {

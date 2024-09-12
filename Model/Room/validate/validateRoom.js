@@ -9,12 +9,10 @@ class ROOM_VALIDATED {
             'string.hex': `"HOTEL_ID" phải là chuỗi ký tự hexadecimal`,
             'any.required': `"HOTEL_ID" là trường bắt buộc`
         }),
-        ROOM_NUMBER: Joi.number().integer().positive().required().messages({
-          'number.base': `"ROOM_NUMBER" phải là một số`,
-          'number.integer': `"ROOM_NUMBER" phải là số nguyên`,
-          'number.positive': `"ROOM_NUMBER" phải là số dương`,
-          'any.required': `"ROOM_NUMBER" là trường bắt buộc`
-      }),
+        ROOM_NUMBER: Joi.string().pattern(/^\d+$/).optional().messages({
+            'string.base': `"ROOM_NUMBER" phải là một chuỗi số`,
+            'string.pattern.base': `"ROOM_NUMBER" phải là chuỗi số`
+        }),        
         FLOOR: Joi.number().integer().positive().required().messages({
             'number.base': `"FLOOR" phải là một số`,
             'number.integer': `"FLOOR" phải là số nguyên`,
@@ -34,22 +32,10 @@ class ROOM_VALIDATED {
         DESCRIPTION: Joi.string().optional().allow('').messages({
             'string.base': `"DESCRIPTION" phải là một chuỗi`
         }),
-        IMAGES: Joi.array().items(
-            Joi.object({
-                path: Joi.string().uri().required().messages({
-                    'string.base': `"path" phải là một chuỗi`,
-                    'string.uri': `"path" phải là một URL hợp lệ`,
-                    'any.required': `"path" là trường bắt buộc`
-                }),
-                description: Joi.string().optional().allow('').messages({
-                    'string.base': `"description" phải là một chuỗi`
-                }),
-                order: Joi.number().integer().optional().messages({
-                    'number.base': `"order" phải là một số nguyên`
-                })
-            })
-        ).optional().messages({
-            'array.base': `"IMAGES" phải là một mảng`
+        IMAGES: Joi.array().items(Joi.string().uri().required()).optional().messages({
+            'array.base': `"IMAGES" phải là một mảng`,
+            'string.base': `"IMAGES" chứa các giá trị phải là chuỗi`,
+            'string.uri': `"IMAGES" chứa các giá trị phải là URL hợp lệ`
         }),
         AVAILABILITY: Joi.array().items(
             Joi.object({
@@ -71,6 +57,9 @@ class ROOM_VALIDATED {
             }),
             view: Joi.string().optional().allow('').messages({
                 'string.base': `"view" phải là một chuỗi`
+            }),
+            amenities: Joi.string().optional().allow('').messages({
+                'string.base': `"amenities" phải là một chuỗi`
             }),
             others: Joi.object().optional().messages({
                 'object.base': `"others" phải là một đối tượng`

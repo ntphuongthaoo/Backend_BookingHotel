@@ -3,37 +3,32 @@ const Schema = mongoose.Schema;
 const MetadataHotel = require('../MetadataHotel/MetadataHotel');
 
 const AddressSchema = new Schema({
-  PROVINCE: {
-    NAME: {
-      type: String,
-      required: true
-    },
-    CODE: {
-      type: Number,
-      required: true
-    }
+  ADDRESS_LINE: { // Gộp số nhà và tên đường vào một trường
+    type: String,
+    required: false // Để trống nếu không có thông tin
   },
-  DISTRICT: {
-    NAME: {
-      type: String,
-      required: true
-    },
-    CODE: {
-      type: Number,
-      required: true
-    }
+  HAMLET: { // Dành cho những địa chỉ ở khu vực không có số nhà/đường
+    type: String,
+    required: false // Để trống nếu không cần thiết
   },
-  WARD: {
-    NAME: {
-      type: String,
-      required: true
-    },
-    CODE: {
-      type: Number,
-      required: true
-    }
+  WARD: { // Xã/Phường
+    type: String,
+    required: true // Bắt buộc nhập xã/phường
   },
-  _id: false
+  DISTRICT: { // Huyện/Quận
+    type: String,
+    required: true // Bắt buộc nhập huyện/quận
+  },
+  CITY: { // Tỉnh/Thành phố
+    type: String,
+    required: true // Bắt buộc nhập tỉnh/thành phố
+  },
+  COUNTRY: { // Quốc gia, mặc định là Việt Nam
+    type: String,
+    default: 'Vietnam',
+    required: true
+  },
+  _id: false // Không cần tạo _id cho subdocument này
 });
 
 const HotelSchema = new Schema({

@@ -10,42 +10,35 @@ const createHotelValidate = Joi.object({
     "any.required": "Tên khách sạn là bắt buộc.",
   }),
   ADDRESS: Joi.object({
-    PROVINCE: Joi.object({
-      NAME: Joi.string().required().messages({
-        "string.base": "Tên tỉnh thành phải là một chuỗi.",
-        "string.empty": "Tên tỉnh thành không được để trống.",
-        "any.required": "Tên tỉnh thành là bắt buộc.",
-      }),
-      CODE: Joi.number().integer().required().messages({
-        "number.base": "Mã tỉnh thành phải là một số.",
-        "number.integer": "Mã tỉnh thành phải là số nguyên.",
-        "any.required": "Mã tỉnh thành là bắt buộc.",
-      }),
-    }).required(),
-    DISTRICT: Joi.object({
-      NAME: Joi.string().required().messages({
-        "string.base": "Tên quận huyện phải là một chuỗi.",
-        "string.empty": "Tên quận huyện không được để trống.",
-        "any.required": "Tên quận huyện là bắt buộc.",
-      }),
-      CODE: Joi.number().integer().required().messages({
-        "number.base": "Mã quận huyện phải là một số.",
-        "number.integer": "Mã quận huyện phải là số nguyên.",
-        "any.required": "Mã quận huyện là bắt buộc.",
-      }),
-    }).required(),
-    WARD: Joi.object({
-      NAME: Joi.string().required().messages({
-        "string.base": "Tên phường xã phải là một chuỗi.",
-        "string.empty": "Tên phường xã không được để trống.",
-        "any.required": "Tên phường xã là bắt buộc.",
-      }),
-      CODE: Joi.number().integer().required().messages({
-        "number.base": "Mã phường xã phải là một số.",
-        "number.integer": "Mã phường xã phải là số nguyên.",
-        "any.required": "Mã phường xã là bắt buộc.",
-      }),
-    }).required(),
+    ADDRESS_LINE: Joi.string().allow('').messages({
+      "string.base": "Địa chỉ phải là một chuỗi.",
+    }).optional(), // Tùy chọn vì có thể không có thông tin đầy đủ
+
+    HAMLET: Joi.string().allow('').messages({
+      "string.base": "Tên ấp/thôn phải là một chuỗi.",
+    }).optional(), // Tùy chọn cho những địa chỉ ở vùng nông thôn không có số nhà và đường
+
+    WARD: Joi.string().required().messages({
+      "string.base": "Tên phường/xã phải là một chuỗi.",
+      "string.empty": "Tên phường/xã không được để trống.",
+      "any.required": "Tên phường/xã là bắt buộc.",
+    }),
+
+    DISTRICT: Joi.string().required().messages({
+      "string.base": "Tên quận/huyện phải là một chuỗi.",
+      "string.empty": "Tên quận/huyện không được để trống.",
+      "any.required": "Tên quận/huyện là bắt buộc.",
+    }),
+
+    CITY: Joi.string().required().messages({
+      "string.base": "Tên tỉnh/thành phố phải là một chuỗi.",
+      "string.empty": "Tên tỉnh/thành phố không được để trống.",
+      "any.required": "Tên tỉnh/thành phố là bắt buộc.",
+    }),
+
+    COUNTRY: Joi.string().default('Vietnam').messages({
+      "string.base": "Tên quốc gia phải là một chuỗi.",
+    }).optional(), // Có thể bỏ qua nếu sử dụng giá trị mặc định
   }).required(),
   STATE: Joi.boolean().required().messages({
     "boolean.base": "Trạng thái phải là kiểu boolean.",

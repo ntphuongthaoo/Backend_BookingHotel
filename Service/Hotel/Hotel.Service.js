@@ -36,6 +36,11 @@ class HOTEL_SERVICE {
           return hotels;
     }
 
+    async getHotelById (hotelId) {
+        const hotel = await HOTEL_MODEL.findById(hotelId);
+        return hotel;
+    }
+
     async getHotelsAndSearch(tabStatus, page, limit, search = "", userRole = "") {
         // Xây dựng query cơ bản
         let matchStage = {};

@@ -4,9 +4,7 @@ class CART_CONTROLLER {
   async createCart(req, res) {
     try {
       const userId = req.user_id;
-
       const cart = await CART_SERVICE.createCart(userId);
-
       return res.status(201).json({
         success: true,
         data: cart,

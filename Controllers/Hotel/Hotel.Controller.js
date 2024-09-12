@@ -3,7 +3,7 @@ const HOTEL_SERVICE = require('../../Service/Hotel/Hotel.Service')
 const { createHotelValidate } = require('../../Model/Hotel/validate/validateHotel')
 
 class HOTEL_CONTROLLER {
-    createHotel = async (req, res) => {
+    async createHotel (req, res) {
         const payload = req.body;
         const { error, value } = createHotelValidate.validate(payload);
 
@@ -22,11 +22,16 @@ class HOTEL_CONTROLLER {
             })
 
         } catch (err) {
-            return res.status(500).json({ errors: "Tạo khách sạn thất bại!!" });
+            console.error(err); // Ghi lỗi ra console để kiểm tra
+            return res.status(500).json({
+                success: false,
+                message: "Tạo khách sạn thất bại!!",
+                error: err.message // Trả về thông tin lỗi chi tiết
+            });
         }
     };
 
-    updateHotel = async (req, res) => {
+    async updateHotel (req, res) {
         try {
             const { id } = req.params;
             const hotelData = req.body;
@@ -44,7 +49,7 @@ class HOTEL_CONTROLLER {
         }
     }
 
-    deleteHotel = async (req, res) => {
+    async deleteHotel (req, res) {
         try {
             const { hotelId } = req.params;
 
@@ -62,7 +67,26 @@ class HOTEL_CONTROLLER {
         }
     }
 
-    async getAllHotels(req, res) {
+    async getHotelById(req, res) {
+        try {
+            const HotelId = req.params.id;
+            const Hotel = await HOTEL_SERVICE.getHotelById(HotelId);
+            if (!HotelId){
+                return res.status(404).json({ message: "Không tìm thấy khách sạn!"});
+            }
+            return res.status(200).json({
+                success: true,
+                data: Hotel
+            })
+        } catch (err) {
+            return res.status(500).json({ 
+                success: false,
+                message: err.message
+            });
+        }
+    }
+
+    async getAllHotels (req, res) {
         try {
           const hotels = await HOTEL_SERVICE.getAllHotels();
           return res.status(200).json({
@@ -74,9 +98,9 @@ class HOTEL_CONTROLLER {
             success: false,
             message: 'Internal Server Error', error: error.message });
         }
-      }
+    }
 
-    getHotelsAndSearch = async (req, res) => {
+    async getHotelsAndSearch (req, res) {
         try {
             const { tabStatus, page = 1, limit = 10, search = "" } = req.query;
             

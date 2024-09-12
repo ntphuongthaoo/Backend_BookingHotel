@@ -9,5 +9,6 @@ router.put('/updateHotel/:id',verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAG
 router.post('/deleteHotel/:hotelId',verifyToken, authorizeRoles('ADMIN'), HOTEL_CONTROLLER.deleteHotel);
 router.get('/getHotelsAndSearch',verifyToken, HOTEL_CONTROLLER.getHotelsAndSearch);
 router.get('/getAllHotels', HOTEL_CONTROLLER.getAllHotels);
+router.get('/getHotelById/:id', HOTEL_CONTROLLER.getHotelById);
 
 module.exports = router;
