@@ -1,6 +1,7 @@
 const ROOM_MODEL = require("../../Model/Room/Room.Model");
 const METADATA_ROOM_SERVICE = require("../../Service/MetadataRoom/MetadataRoom.Service");
 const CLOUDINARY = require("../../Config/cloudinaryConfig");
+const mongoose = require("mongoose");
 
 class ROOM_SERVICE {
   async addRooms(roomData, quantity) {
@@ -40,21 +41,23 @@ class ROOM_SERVICE {
         // **Upload ảnh lên Cloudinary**
         let uploadedImages = []; // Đảm bảo biến được định nghĩa trước
         if (roomData.IMAGES && roomData.IMAGES.length > 0) {
-            uploadedImages = await Promise.all(
-                roomData.IMAGES.map(async (image) => {
-                    // Kiểm tra nếu là URL hoặc file path cục bộ
-                    if (image.startsWith('http')) {
-                        // Upload từ URL
-                        const uploadResult = await CLOUDINARY.uploader.upload(image);
-                        return uploadResult.secure_url;
-                    } else {
-                        // Upload từ file cục bộ
-                        const uploadResult = await CLOUDINARY.uploader.upload(image.path);
-                        return uploadResult.secure_url;
-                    }
-                })
-            );
-        }        
+          uploadedImages = await Promise.all(
+            roomData.IMAGES.map(async (image) => {
+              // Kiểm tra nếu là URL hoặc file path cục bộ
+              if (image.startsWith("http")) {
+                // Upload từ URL
+                const uploadResult = await CLOUDINARY.uploader.upload(image);
+                return uploadResult.secure_url;
+              } else {
+                // Upload từ file cục bộ
+                const uploadResult = await CLOUDINARY.uploader.upload(
+                  image.path
+                );
+                return uploadResult.secure_url;
+              }
+            })
+          );
+        }
 
         // Tạo dữ liệu phòng mới với lịch trống trong 1 tháng
         const newRoomData = {
@@ -127,7 +130,20 @@ class ROOM_SERVICE {
     return room;
   }
 
+  async findRoomsById(roomId) {
+    const room = await ROOM_MODEL.findById(roomId);
+    return room;
+  }
+
   async findRoomsByHotel(hotelId) {
+    const rooms = await ROOM_MODEL.find({
+      HOTEL_ID: hotelId,
+      IS_DELETED: false,
+    });
+    return rooms;
+  }
+
+  async getAllRoomsInHotel(hotelId) {
     const rooms = await ROOM_MODEL.find({
       HOTEL_ID: hotelId,
       IS_DELETED: false,
@@ -142,6 +158,88 @@ class ROOM_SERVICE {
       "AVAILABILITY.DATE": date,
       "AVAILABILITY.AVAILABLE": true,
     });
+
+    return rooms;
+  }
+
+  async searchRooms(hotelId, checkInDate, checkOutDate, numberOfRooms) {
+    console.log(`Hotel ID: ${hotelId}`);
+
+    // Chuyển đổi hotelId thành ObjectId
+    const objectId = new mongoose.Types.ObjectId(hotelId);
+
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+
+    // Tính số ngày giữa checkInDate và checkOutDate
+    const numberOfDays = Math.ceil(
+      (checkOut - checkIn) / (1000 * 60 * 60 * 24)
+    );
+
+    // Kiểm tra số ngày
+    console.log(`Number of Days: ${numberOfDays}`);
+
+    const rooms = await ROOM_MODEL.aggregate([
+      {
+        $match: {
+          HOTEL_ID: objectId,
+          IS_DELETED: false,
+        },
+      },
+      {
+        $addFields: {
+          availableDates: {
+            $filter: {
+              input: "$AVAILABILITY",
+              as: "availability",
+              cond: {
+                $and: [
+                  { $gte: ["$$availability.DATE", checkIn] },
+                  { $lt: ["$$availability.DATE", new Date(checkOut.getTime() + 24 * 60 * 60 * 1000)] },
+                  { $eq: ["$$availability.AVAILABLE", true] },
+                ],
+              },
+            },
+          },
+          availableDatesCount: {
+            $size: {
+              $filter: {
+                input: "$AVAILABILITY",
+                as: "availability",
+                cond: {
+                  $and: [
+                    { $gte: ["$$availability.DATE", checkIn] },
+                    { $lt: ["$$availability.DATE", new Date(checkOut.getTime() + 24 * 60 * 60 * 1000)] },
+                    { $eq: ["$$availability.AVAILABLE", true] },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $match: {
+          availableDatesCount: {
+            $gte: numberOfDays,
+          },
+        },
+      },
+      {
+        $project: {
+          ROOM_NUMBER: 1,
+          FLOOR: 1,
+          TYPE: 1,
+          PRICE_PERNIGHT: 1,
+          DESCRIPTION: 1,
+          IMAGES: 1,
+          AVAILABILITY: 1,
+          CUSTOM_ATTRIBUTES: 1,
+          DEPOSIT_PERCENTAGE: 1,
+          // availableDates: 1,
+        },
+      },
+    ]);
 
     return rooms;
   }

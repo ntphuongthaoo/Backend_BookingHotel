@@ -60,7 +60,7 @@ const HotelSchema = new Schema({
     type: Boolean,
     default: false
   },
-  IMAGE: {
+  IMAGES: {
     type: [String], // Lưu URL hoặc đường dẫn hình ảnh
   },
 }, { 

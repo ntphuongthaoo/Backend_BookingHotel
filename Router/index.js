@@ -3,12 +3,14 @@ const userRouter = require('./User');
 const hotelRouter = require('./Hotel')
 const roomRouter = require('./Room');
 const cartRouter = require('./Cart');
+const bookingRouter = require('./Booking');
 
 function route(app) {
     app.use('/users', userRouter);
     app.use('/hotels', hotelRouter);
     app.use('/rooms', roomRouter);
     app.use('/carts', cartRouter);
+    app.use('/bookings', bookingRouter);
 }
 
 module.exports = route;

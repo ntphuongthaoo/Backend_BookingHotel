@@ -63,7 +63,7 @@ const createHotelValidate = Joi.object({
     "string.base": "Mô tả phải là một chuỗi.",
   }),
 
-  IMAGE: Joi.array()
+  IMAGES: Joi.array()
     .items(
       Joi.string()
         .uri()

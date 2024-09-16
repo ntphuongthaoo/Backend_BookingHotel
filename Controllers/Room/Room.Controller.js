@@ -105,6 +105,53 @@ class ROOM_CONTROLLER {
     }
   }
 
+  async getAllRoomsInHotel(req, res) {
+    try {
+      const hotelId = req.params.hotelId;
+      const rooms = await ROOM_SERVICE.getAllRoomsInHotel(hotelId);
+
+      return res.status(200).json({
+        success: true,
+        rooms: rooms,
+      });
+    } catch (error) {
+      return res.status(404).json({
+        success: false,
+        message: "Error getting all rooms: " + error.message,
+      });
+    }
+  }
+
+  searchRooms = async (req, res) => {
+    const { hotelId, checkInDate, checkOutDate, numberOfRooms } = req.query;
+
+    try {
+      const rooms = await ROOM_SERVICE.searchRooms(
+        hotelId,
+        checkInDate,
+        checkOutDate,
+        parseInt(numberOfRooms, 10)
+      );
+      // Kiểm tra số lượng phòng có đủ hay không
+      if (rooms.length >= numberOfRooms) {
+        return res.status(200).json({
+          success: true,
+          data: rooms,
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: "Không đủ phòng trống",
+        });
+      }
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+      });
+    }
+  };
+
   async listAvailableRooms(req, res) {
     try {
       const { hotelId, date } = req.query;

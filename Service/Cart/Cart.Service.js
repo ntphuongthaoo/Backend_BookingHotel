@@ -179,6 +179,29 @@ class CART_SERVICE {
     }
   }
 
+  // Hàm xóa các phòng đã đặt trong giỏ hàng
+  async removeBookedRooms(userId, bookedRooms) {
+    const cart = await CART_MODEL.findOne({ USER_ID: userId });
+    if (!cart) {
+      throw new Error('Giỏ hàng không tồn tại');
+    }
+
+    // Duyệt qua các khách sạn và xóa phòng đã đặt
+    cart.LIST_ROOMS.forEach((hotel) => {
+      // Lọc ra những phòng chưa được đặt
+      hotel.ROOMS = hotel.ROOMS.filter(room => 
+        !bookedRooms.some(bookedRoom => bookedRoom.ROOM_ID.equals(room.ROOM_ID))
+      );
+    });
+
+    // Xóa các khách sạn không còn phòng trong giỏ hàng
+    cart.LIST_ROOMS = cart.LIST_ROOMS.filter(hotel => hotel.ROOMS.length > 0);
+
+    // Lưu lại giỏ hàng sau khi đã xóa các phòng đã đặt
+    await cart.save();
+    return cart;
+  }
+
   async getCartByUserId (userId) {
     // Tìm giỏ hàng của người dùng dựa trên userId
     const cart = await CART_MODEL.findOne({ USER_ID: userId })

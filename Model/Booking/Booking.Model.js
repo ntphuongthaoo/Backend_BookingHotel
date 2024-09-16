@@ -7,7 +7,7 @@ const BookingSchema = new Schema({
     type: Schema.Types.ObjectId,
     required: true
   },
-  ROOMS: [{
+  LIST_ROOMS: [{
     ROOM_ID: {
       type: Schema.Types.ObjectId,
       required: true,
@@ -19,6 +19,10 @@ const BookingSchema = new Schema({
     },
     END_DATE: {
       type: Date,
+      required: true
+    },
+    TOTAL_PRICE_ROOM: {
+      type: Number,
       required: true
     }
   }],
@@ -36,7 +40,7 @@ const BookingSchema = new Schema({
   },
   STATUS: {
     type: String,
-    enum: ['Booked', 'CheckedIn', 'Canceled', 'CheckedOut'],
+    enum: ['NotYetPaid', 'Booked', 'CheckedIn', 'Canceled', 'CheckedOut'],
     required: true
   },
   BOOKING_TYPE: {
@@ -55,24 +59,9 @@ const BookingSchema = new Schema({
     type: String,
     required: true
   },
-  START_DATE: {
-    type: Date,
-    required: true
-  },
-  END_DATE: {
-    type: Date,
-    required: true
-  },
-  CREATE_AT: {
-    type: Date,
-    default: Date.now,
-    required: true
-  },
-  UPDATE_AT: {
-    type: Date
-  }
 }, {
-  versionKey: false
+  versionKey: false,
+  timestamps: true,
 });
 
 const Booking = mongoose.model('Booking', BookingSchema);
