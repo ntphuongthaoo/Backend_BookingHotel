@@ -133,14 +133,14 @@ class HOTEL_CONTROLLER {
         userRole // Truyền userRole vào phương thức dịch vụ
       );
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         data: result.hotels,
         totalPages: result.totalPages,
         totalCount: result.totalCount,
       });
     } catch (err) {
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: "Lỗi khi truy vấn khách sạn.",
         error: err.message,
@@ -148,26 +148,25 @@ class HOTEL_CONTROLLER {
     }
   }
 
-  // searchHotels = async (req, res) => {
-  //     try {
-  //         const { name = "", address = "", provinceCode = "" } = req.query;
+  async getServiceInHotel(req, res) {
+    try {
+      const hotelId = req.params.id;
+      const service = await HOTEL_SERVICE.getServiceInHotel(hotelId);
 
-  //         const result = await HOTEL_SERVICE.searchHotels(name, address, provinceCode);
+      return res.status(200).json({
+        success: true,
+        data: service
+      });
 
-  //         res.status(200).json({
-  //             success: true,
-  //             data: result.hotels,
-  //             totalPages: result.totalPages,
-  //             totalCount: result.totalCount
-  //         });
-  //     } catch (err) {
-  //         res.status(500).json({
-  //             success: false,
-  //             message: 'Lỗi khi tìm kiếm khách sạn.',
-  //             error: err.message
-  //         });
-  //     }
-  // };
+    }catch (error) {
+      console.error("Error booking from cart:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Error booking from cart.",
+        error: error.message,
+      });
+    }
+  }
 }
 
 module.exports = new HOTEL_CONTROLLER();

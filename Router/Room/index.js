@@ -10,7 +10,7 @@ router.post('/deleteRoom/:roomId', verifyToken, authorizeRoles('ADMIN', 'BRANCH_
 router.post('/updateRoom/:roomId', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), ROOM_CONTROLLER.updateRoom);
 router.post('/findRoomsByHotel/:hotelId', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), ROOM_CONTROLLER.findRoomsByHotel);
 router.post('/listAvailableRooms', verifyToken, ROOM_CONTROLLER.listAvailableRooms);
-router.get('/getAllRoomsInHotel/:hotelId', verifyToken, ROOM_CONTROLLER.getAllRoomsInHotel);
+router.get('/getRooms/:hotelId', verifyToken, ROOM_CONTROLLER.getRooms);
 router.get('/searchRooms', verifyToken, ROOM_CONTROLLER.searchRooms);
 
 module.exports = router;

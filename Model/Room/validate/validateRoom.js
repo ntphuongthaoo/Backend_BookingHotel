@@ -32,7 +32,7 @@ class ROOM_VALIDATED {
         DESCRIPTION: Joi.string().optional().allow('').messages({
             'string.base': `"DESCRIPTION" phải là một chuỗi`
         }),
-        IMAGES: Joi.array().items(Joi.string().uri().required()).optional().messages({
+        IMAGES: Joi.array().items(Joi.string().uri()).optional().messages({
             'array.base': `"IMAGES" phải là một mảng`,
             'string.base': `"IMAGES" chứa các giá trị phải là chuỗi`,
             'string.uri': `"IMAGES" chứa các giá trị phải là URL hợp lệ`

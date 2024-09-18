@@ -170,6 +170,11 @@ class HOTEL_SERVICE {
       throw new Error("Lỗi khi truy vấn khách sạn");
     }
   }
+
+  async getServiceInHotel(hotelId){
+    const service = await HOTEL_MODEL.findById(hotelId).select('SERVICES');
+    return service;
+  }
 }
 
 module.exports = new HOTEL_SERVICE();

@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 const MetadataRoom = require("../MetadataRoom/MetadataRoom");
+const ROOM_SERVICE = require('../../Service/Room/Room.Service');
 
 const AvailabilitySchema = new Schema({
   DATE: {
@@ -67,11 +68,12 @@ const RoomSchema = new Schema(
     },
     IS_DELETED: {
       type: Boolean,
-      default: false
+      default: false,
+    },
+    IS_IN_CART: {
+      type: Boolean,
+      default: false,
     }
-    // DISCOUNT: {
-    //   type: Number,
-    // },
   },
   {
     versionKey: false,
@@ -80,14 +82,9 @@ const RoomSchema = new Schema(
 );
 
 RoomSchema.pre("save", async function (next) {
-  if (this.isNew && this.FLOOR != null && this.ROOM_NUMBER != null) {
+  if (this.isNew && this.FLOOR != null && (!this.ROOM_NUMBER || this.ROOM_NUMBER === "")) {
     try {
-      // Đảm bảo ROOM_NUMBER là 2 chữ số bằng cách thêm số 0 phía trước nếu cần
-      const roomNumberSuffix = this.ROOM_NUMBER.toString().padStart(2, "0");
-      const floorPrefix = this.FLOOR.toString();
-
-      // Ghép FLOOR và ROOM_NUMBER thành ROOM_NUMBER đầy đủ
-      this.ROOM_NUMBER = `${floorPrefix}${roomNumberSuffix}`;
+      this.ROOM_NUMBER = await ROOM_SERVICE.generateRoomNumber(this.FLOOR, this.HOTEL_ID);
       next();
     } catch (error) {
       next(error);
@@ -96,6 +93,7 @@ RoomSchema.pre("save", async function (next) {
     next();
   }
 });
+
 
 RoomSchema.post("save", async function (doc, next) {
   try {

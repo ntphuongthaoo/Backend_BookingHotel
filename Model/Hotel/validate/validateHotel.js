@@ -76,6 +76,46 @@ const createHotelValidate = Joi.object({
       "string.regex.base":
         "URL hình ảnh phải kết thúc bằng jpg, jpeg, png hoặc gif.",
     }),
+    SERVICES: Joi.object({
+      PHONG_TAM: Joi.object({
+        GIAY_VE_SINH: Joi.boolean().default(false),
+        BON_TAM_HOAC_VOI_SEN: Joi.boolean().default(false),
+        DEP: Joi.boolean().default(false),
+        NHA_VE_SINH: Joi.boolean().default(false),
+        DO_VE_SINH_CA_NHAN: Joi.boolean().default(false),
+        AO_CHOANG_TAM: Joi.boolean().default(false),
+        BON_TAM: Joi.boolean().default(false),
+        VOI_SEN: Joi.boolean().default(false),
+      }).default(),
+      CHO_DAU_XE: Joi.object({
+        CO_CHO_DO_XE_CONG_CONG: Joi.boolean().default(false),
+      }).default(),
+      AN_NINH: Joi.object({
+        BAO_DONG_AN_NINH: Joi.boolean().default(false),
+        KET_AN_TOAN: Joi.boolean().default(false),
+      }).default(),
+      CHAM_SOC_SUC_KHOE: Joi.boolean().default(false),
+      DICH_VU_DOANH_NHAN: Joi.object({
+        PHOTOCOPY: Joi.boolean().default(false),
+        TRUNG_TAM_DICH_VU_DOANH_NHAN: Joi.boolean().default(false),
+        TIEN_NGHI_HOP_TIEC: Joi.boolean().default(false),
+      }).default(),
+      DICH_VU_GIAT_UI: Joi.object({
+        DON_PHONG_HANG_NGAY: Joi.boolean().default(false),
+        DICH_VU_LA_UI: Joi.boolean().default(false),
+        GIAT_UI: Joi.boolean().default(false),
+        GIAT_KHO: Joi.boolean().default(false),
+      }).default(),
+      DICH_VU_LE_TAN: Joi.object({
+        NHAN_TRA_PHONG_RIENG: Joi.boolean().default(false),
+        GIU_HANH_LY: Joi.boolean().default(false),
+        LE_TAN_24H: Joi.boolean().default(false),
+        THU_DOI_NGOAI_TE: Joi.boolean().default(false),
+      }).default(),
+      INTERNET: Joi.boolean().default(false),
+      TIEN_ICH_TRONG_PHONG: Joi.boolean().default(false),
+      DICH_VU_AN_UONG: Joi.boolean().default(false),
+    }).default(),
 });
 
 // Hàm kiểm tra và trả về lỗi

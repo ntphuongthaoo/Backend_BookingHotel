@@ -19,19 +19,19 @@ class CART_CONTROLLER {
     }
   }
 
-  async addRoomToCart (req, res) {
+  async addRoomToCart(req, res) {
     try {
-      const { hotelId, roomId, startDate, endDate } = req.body;
+      const { roomId, startDate, endDate } = req.body;
       const userId = req.user_id;
   
-      if (!userId || !hotelId || !roomId || !startDate || !endDate) {
+      if (!userId || !roomId || !startDate || !endDate) {
         return res.status(400).json({
           success: false,
           message: 'All fields are required',
         });
       }
-  
-      const cart = await CART_SERVICE.addRoomToCart(userId, hotelId, roomId, startDate, endDate);
+
+      const cart = await CART_SERVICE.addRoomToCart(userId, roomId, startDate, endDate);
   
       return res.status(200).json({
         success: true,
@@ -45,14 +45,14 @@ class CART_CONTROLLER {
         error: error.message,
       });
     }
-  }
+  }  
 
   async removeRoomFromCart (req, res) {
     const userId = req.user_id; // Lấy từ token
-    const { hotelId, roomId } = req.body;
+    const { roomId } = req.body;
   
     try {
-      const updatedCart = await CART_SERVICE.removeRoomFromCart(userId, hotelId, roomId);
+      const updatedCart = await CART_SERVICE.removeRoomFromCart(userId, roomId);
       return res.status(200).json({
         success: true,
         data: updatedCart,
@@ -66,11 +66,11 @@ class CART_CONTROLLER {
 
   async updateRoomInCart (req, res) {
     try {
-      const { hotelId, roomId, newStartDate, newEndDate } = req.body;
+      const { roomId, newStartDate, newEndDate } = req.body;
       const userId = req.user_id;
   
       // Gọi hàm updateRoomInCart từ service
-      const updatedCart = await CART_SERVICE.updateRoomInCart(userId, hotelId, roomId, newStartDate, newEndDate);
+      const updatedCart = await CART_SERVICE.updateRoomInCart(userId, roomId, newStartDate, newEndDate);
   
       // Trả về kết quả cho client
       return res.status(200).json({
@@ -92,7 +92,7 @@ class CART_CONTROLLER {
     try {
       const userId = req.user_id;
 
-      const cart = await CART_SERVICE.getCartByUserId(userId);
+      const cart = await CART_SERVICE.getCartWithGroupedRoomsByHotel(userId);
 
       return res.status(200).json({
         success: true,

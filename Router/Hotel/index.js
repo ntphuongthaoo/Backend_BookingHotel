@@ -11,5 +11,6 @@ router.post('/deleteHotel/:hotelId',verifyToken, authorizeRoles('ADMIN'), HOTEL_
 router.get('/getHotelsAndSearch',verifyToken, HOTEL_CONTROLLER.getHotelsAndSearch);
 router.get('/getAllHotels', HOTEL_CONTROLLER.getAllHotels);
 router.get('/getHotelById/:id', HOTEL_CONTROLLER.getHotelById);
+router.get('/getServiceInHotel/:id', HOTEL_CONTROLLER.getServiceInHotel);
 
 module.exports = router;

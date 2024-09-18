@@ -1,21 +1,20 @@
 const CART_MODEL = require("../../Model/Cart/Cart.Model");
 const ROOM_MODEL = require("../../Model/Room/Room.Model");
 const HOTEL_MODEL = require("../../Model/Hotel/Hotel.Model");
+const mongoose = require("mongoose");
 
 class CART_SERVICE {
-  
   async createCart(userId) {
     const newCart = new CART_MODEL({
       USER_ID: userId,
-      LIST_ROOMS: [],
-      LIST_ROOM_MAX_NUMBER: 0,
+      ROOMS: [],
     });
 
     await newCart.save();
     return newCart;
   }
 
-  async addRoomToCart(userId, hotelId, roomId, startDate, endDate) {
+  async addRoomToCart(userId, roomId, startDate, endDate) {
     // Tìm giỏ hàng của người dùng
     let cart = await CART_MODEL.findOne({ USER_ID: userId });
 
@@ -30,50 +29,20 @@ class CART_SERVICE {
       throw new Error("Room not found");
     }
 
-    // Tính tổng số đêm và tổng tiền cho phòng
-    const numNights = Math.ceil(
-      (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)
+    // Kiểm tra phòng đã tồn tại trong giỏ hàng hay chưa
+    const roomExists = cart.ROOMS.find(
+      (room) => room.ROOM_ID.toString() === roomId
     );
-    const totalPriceForRoom = room.PRICE_PERNIGHT * numNights;
-
-    // Kiểm tra xem khách sạn đã tồn tại trong giỏ hàng chưa
-    const hotelIndex = cart.LIST_ROOMS.findIndex(
-      (hotel) => hotel.HOTEL_ID.toString() === hotelId
-    );
-
-    if (hotelIndex > -1) {
-      // Nếu khách sạn đã có trong giỏ hàng, kiểm tra phòng
-      const roomIndex = cart.LIST_ROOMS[hotelIndex].ROOMS.findIndex(
-        (room) => room.ROOM_ID.toString() === roomId
-      );
-
-      if (roomIndex === -1) {
-        // Nếu phòng chưa có, thêm phòng mới
-        cart.LIST_ROOMS[hotelIndex].ROOMS.push({
-          ROOM_ID: roomId,
-          START_DATE: startDate,
-          END_DATE: endDate,
-          TOTAL_PRICE_FOR_ROOM: totalPriceForRoom, // Lưu tổng tiền của phòng
-        });
-        cart.LIST_ROOM_MAX_NUMBER += 1;
-      } else {
-        throw new Error("Phòng đã tồn tại trong giỏ hàng của bạn.");
-      }
-    } else {
-      // Nếu khách sạn chưa có trong giỏ hàng, thêm khách sạn và phòng mới
-      cart.LIST_ROOMS.push({
-        HOTEL_ID: hotelId,
-        ROOMS: [
-          {
-            ROOM_ID: roomId,
-            START_DATE: startDate,
-            END_DATE: endDate,
-            TOTAL_PRICE_FOR_ROOM: totalPriceForRoom, // Lưu tổng tiền của phòng
-          },
-        ],
-      });
-      cart.LIST_ROOM_MAX_NUMBER += 1;
+    if (roomExists) {
+      throw new Error("Phòng đã tồn tại trong giỏ hàng của bạn.");
     }
+
+    // Thêm phòng mới vào giỏ hàng
+    cart.ROOMS.push({
+      ROOM_ID: roomId,
+      START_DATE: startDate,
+      END_DATE: endDate,
+    });
 
     // Lưu thay đổi giỏ hàng
     await cart.save();
@@ -81,154 +50,168 @@ class CART_SERVICE {
     return cart;
   }
 
-  async removeRoomFromCart(userId, hotelId, roomId) {
-    try {
-      // Tìm giỏ hàng của người dùng
-      const cart = await CART_MODEL.findOne({ USER_ID: userId });
-      if (!cart) {
-        throw new Error("Cart not found");
-      }
-
-      // Tìm khách sạn trong giỏ hàng
-      const hotelIndex = cart.LIST_ROOMS.findIndex(
-        (hotel) => hotel.HOTEL_ID.toString() === hotelId
-      );
-      if (hotelIndex === -1) {
-        throw new Error("Hotel not found in cart");
-      }
-
-      // Tìm phòng trong danh sách phòng của khách sạn
-      const roomIndex = cart.LIST_ROOMS[hotelIndex].ROOMS.findIndex(
-        (room) => room.ROOM_ID.toString() === roomId
-      );
-      if (roomIndex === -1) {
-        throw new Error("Room not found in cart");
-      }
-
-      // Xóa phòng khỏi danh sách phòng của khách sạn
-      cart.LIST_ROOMS[hotelIndex].ROOMS.splice(roomIndex, 1);
-
-      // Cập nhật lại tổng số phòng
-      cart.LIST_ROOM_MAX_NUMBER -= 1;
-
-      // Nếu không còn phòng nào trong khách sạn, xóa khách sạn khỏi giỏ hàng
-      if (cart.LIST_ROOMS[hotelIndex].ROOMS.length === 0) {
-        cart.LIST_ROOMS.splice(hotelIndex, 1);
-      }
-
-      // Lưu thay đổi giỏ hàng
-      await cart.save();
-
-      return cart;
-    } catch (error) {
-      console.error("Error removing room from cart:", error);
-      throw new Error("Error removing room from cart");
+  async removeRoomFromCart(userId, roomId) {
+    // Tìm giỏ hàng của người dùng
+    const cart = await CART_MODEL.findOne({ USER_ID: userId });
+    if (!cart) {
+      throw new Error("Cart not found");
     }
+
+    // Tìm phòng trong giỏ hàng
+    const roomIndex = cart.ROOMS.findIndex(
+      (room) => room.ROOM_ID.toString() === roomId
+    );
+    if (roomIndex === -1) {
+      throw new Error("Room not found in cart");
+    }
+
+    // Xóa phòng khỏi giỏ hàng
+    cart.ROOMS.splice(roomIndex, 1);
+
+    // Lưu thay đổi giỏ hàng
+    await cart.save();
+
+    return cart;
   }
 
-  async updateRoomInCart(userId, hotelId, roomId, newStartDate, newEndDate) {
-    try {
-      // Tìm giỏ hàng của người dùng
-      let cart = await CART_MODEL.findOne({ USER_ID: userId });
-      if (!cart) {
-        throw new Error("Cart not found");
-      }
-
-      // Tìm khách sạn trong giỏ hàng
-      const hotelIndex = cart.LIST_ROOMS.findIndex(
-        (hotel) => hotel.HOTEL_ID.toString() === hotelId
-      );
-      if (hotelIndex === -1) {
-        throw new Error("Hotel not found in cart");
-      }
-
-      // Tìm phòng trong danh sách phòng của khách sạn
-      const roomIndex = cart.LIST_ROOMS[hotelIndex].ROOMS.findIndex(
-        (room) => room.ROOM_ID.toString() === roomId
-      );
-      if (roomIndex === -1) {
-        throw new Error("Room not found in cart");
-      }
-
-      // Cập nhật thông tin ngày bắt đầu và ngày kết thúc của phòng
-      cart.LIST_ROOMS[hotelIndex].ROOMS[roomIndex].START_DATE = newStartDate;
-      cart.LIST_ROOMS[hotelIndex].ROOMS[roomIndex].END_DATE = newEndDate;
-
-      // Tính toán lại tổng số đêm và tổng tiền
-      const room = await ROOM_MODEL.findById(roomId);
-      if (!room) {
-        throw new Error("Room not found");
-      }
-
-      const numNights = Math.ceil(
-        (new Date(newEndDate) - new Date(newStartDate)) / (1000 * 60 * 60 * 24)
-      );
-      const totalPriceForRoom = room.PRICE_PERNIGHT * numNights;
-
-      // Cập nhật lại tổng giá tiền của phòng
-      cart.LIST_ROOMS[hotelIndex].ROOMS[roomIndex].TOTAL_PRICE_FOR_ROOM =
-        totalPriceForRoom;
-
-      // Lưu thay đổi giỏ hàng
-      await cart.save();
-
-      return cart;
-    } catch (error) {
-      console.error("Error updating room in cart:", error);
-      throw new Error("Error updating room in cart");
+  async updateRoomInCart(userId, roomId, newStartDate, newEndDate) {
+    // Tìm giỏ hàng của người dùng
+    let cart = await CART_MODEL.findOne({ USER_ID: userId });
+    if (!cart) {
+      throw new Error("Cart not found");
     }
+
+    // Tìm phòng trong giỏ hàng
+    const roomIndex = cart.ROOMS.findIndex(
+      (room) => room.ROOM_ID.toString() === roomId
+    );
+    if (roomIndex === -1) {
+      throw new Error("Room not found in cart");
+    }
+
+    // Cập nhật thông tin ngày bắt đầu và kết thúc của phòng
+    cart.ROOMS[roomIndex].START_DATE = newStartDate;
+    cart.ROOMS[roomIndex].END_DATE = newEndDate;
+
+    // Lưu thay đổi giỏ hàng
+    await cart.save();
+
+    return cart;
   }
 
   // Hàm xóa các phòng đã đặt trong giỏ hàng
   async removeBookedRooms(userId, bookedRooms) {
+    // Tìm giỏ hàng dựa vào USER_ID
     const cart = await CART_MODEL.findOne({ USER_ID: userId });
     if (!cart) {
-      throw new Error('Giỏ hàng không tồn tại');
+      throw new Error("Giỏ hàng không tồn tại");
     }
 
-    // Duyệt qua các khách sạn và xóa phòng đã đặt
-    cart.LIST_ROOMS.forEach((hotel) => {
-      // Lọc ra những phòng chưa được đặt
-      hotel.ROOMS = hotel.ROOMS.filter(room => 
-        !bookedRooms.some(bookedRoom => bookedRoom.ROOM_ID.equals(room.ROOM_ID))
+    // Duyệt qua và xóa các phòng đã đặt
+    cart.ROOMS = cart.ROOMS.filter((room) => {
+      return !bookedRooms.some(
+        (bookedRoom) =>
+          bookedRoom.ROOM_ID &&
+          room.ROOM_ID &&
+          bookedRoom.ROOM_ID.equals(room.ROOM_ID)
       );
     });
-
-    // Xóa các khách sạn không còn phòng trong giỏ hàng
-    cart.LIST_ROOMS = cart.LIST_ROOMS.filter(hotel => hotel.ROOMS.length > 0);
 
     // Lưu lại giỏ hàng sau khi đã xóa các phòng đã đặt
     await cart.save();
     return cart;
   }
 
-  async getCartByUserId (userId) {
-    // Tìm giỏ hàng của người dùng dựa trên userId
-    const cart = await CART_MODEL.findOne({ USER_ID: userId })
-      // Lấy thông tin người dùng mà không cần lấy ID
-      // .populate({
-      //   path: "USER_ID",
-      //   select: "fullName",
-      // })
+  async getCartByUserId(userId) {
+    const cart = await CART_MODEL.findOne({ USER_ID: userId });
+    return cart;
+  }
 
-      // Lấy thông tin khách sạn mà không cần lấy ID
-      .populate({
-        path: "LIST_ROOMS.HOTEL_ID",
-        select: "NAME",
-      })
+  async getCartWithGroupedRoomsByHotel(userId) {
+    const cart = await CART_MODEL.aggregate([
+      {
+        $match: { USER_ID: new mongoose.Types.ObjectId(userId) },
+      },
+      {
+        $unwind: { path: "$ROOMS", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $lookup: {
+          from: "rooms",
+          localField: "ROOMS.ROOM_ID",
+          foreignField: "_id",
+          as: "roomDetails",
+        },
+      },
+      {
+        $unwind: { path: "$roomDetails", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $lookup: {
+          from: "hotels",
+          localField: "roomDetails.HOTEL_ID",
+          foreignField: "_id",
+          as: "hotelDetails",
+        },
+      },
+      {
+        $unwind: { path: "$hotelDetails", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $addFields: {
+          "ROOMS.TOTAL_PRICE_FOR_ROOM": {
+            $multiply: [
+              "$roomDetails.PRICE_PERNIGHT",
+              {
+                $ceil: {
+                  $divide: [
+                    { $subtract: ["$ROOMS.END_DATE", "$ROOMS.START_DATE"] },
+                    1000 * 60 * 60 * 24,
+                  ],
+                },
+              },
+            ],
+          },
+          "ROOMS.HOTEL_ID": "$hotelDetails._id",
+          "ROOMS.HOTEL_NAME": "$hotelDetails.NAME",
+        },
+      },
+      {
+        $group: {
+          _id: { HOTEL_ID: "$ROOMS.HOTEL_ID", HOTEL_NAME: "$ROOMS.HOTEL_NAME" },
+          ROOMS: { $push: "$ROOMS" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          HOTEL_ID: "$_id.HOTEL_ID",
+          HOTEL_NAME: "$_id.HOTEL_NAME",
+          ROOMS: 1,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          HOTELS: { $push: "$$ROOT" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          HOTELS: 1,
+        },
+      },
+    ]);
 
-      // Lấy thông tin phòng mà không cần lấy ID
-      .populate({
-        path: "LIST_ROOMS.ROOMS.ROOM_ID",
-        select: "TYPE PRICE_PERNIGHT", 
-      })
-      .lean();
-    if (!cart) {
+    console.log(cart); // Kiểm tra kết quả để xác định nếu có vấn đề với bước nào
+
+    if (!cart || cart.length === 0) {
       throw new Error("Cart not found");
     }
 
-    return cart;
-  };
+    return cart[0];
+  }
 }
 
 module.exports = new CART_SERVICE();

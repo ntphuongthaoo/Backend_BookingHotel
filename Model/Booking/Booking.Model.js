@@ -26,14 +26,6 @@ const BookingSchema = new Schema({
       required: true
     }
   }],
-  CHECKIN_DATE: {
-    type: Date,
-    required: true
-  },
-  CHECKOUT_DATE: {
-    type: Date,
-    required: true
-  },
   TOTAL_PRICE: {
     type: Number,
     required: true

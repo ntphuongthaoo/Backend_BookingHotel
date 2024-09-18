@@ -8,20 +8,7 @@ class ROOM_SERVICE {
     try {
       const roomsToAdd = [];
 
-      // Lấy số phòng lớn nhất hiện có trên tầng đó
-      let startingRoomNumber = await this.findLargestRoomNumberOnFloor(
-        roomData.FLOOR
-      );
-
-      if (!startingRoomNumber) {
-        startingRoomNumber = 1;
-      } else {
-        startingRoomNumber += 1;
-      }
-
       for (let i = 0; i < quantity; i++) {
-        let roomNumber = startingRoomNumber + i;
-
         // Tạo lịch trống trong 1 tháng cho mỗi phòng
         const startDate = new Date();
         const endDate = new Date();
@@ -39,17 +26,14 @@ class ROOM_SERVICE {
         }
 
         // **Upload ảnh lên Cloudinary**
-        let uploadedImages = []; // Đảm bảo biến được định nghĩa trước
+        let uploadedImages = [];
         if (roomData.IMAGES && roomData.IMAGES.length > 0) {
           uploadedImages = await Promise.all(
             roomData.IMAGES.map(async (image) => {
-              // Kiểm tra nếu là URL hoặc file path cục bộ
               if (image.startsWith("http")) {
-                // Upload từ URL
                 const uploadResult = await CLOUDINARY.uploader.upload(image);
                 return uploadResult.secure_url;
               } else {
-                // Upload từ file cục bộ
                 const uploadResult = await CLOUDINARY.uploader.upload(
                   image.path
                 );
@@ -59,7 +43,13 @@ class ROOM_SERVICE {
           );
         }
 
-        // Tạo dữ liệu phòng mới với lịch trống trong 1 tháng
+        // Tạo ROOM_NUMBER
+        const roomNumber = await this.generateRoomNumber(
+          roomData.FLOOR,
+          roomData.HOTEL_ID
+        );
+
+        // Tạo dữ liệu phòng mới mà không gán ROOM_NUMBER, để middleware xử lý
         const newRoomData = {
           HOTEL_ID: roomData.HOTEL_ID,
           ROOM_NUMBER: roomNumber,
@@ -67,15 +57,15 @@ class ROOM_SERVICE {
           TYPE: roomData.TYPE,
           PRICE_PERNIGHT: roomData.PRICE_PERNIGHT,
           DESCRIPTION: roomData.DESCRIPTION,
-          IMAGES: uploadedImages, // Lưu URL của ảnh từ Cloudinary
+          IMAGES: uploadedImages,
           AVAILABILITY: availability,
           CUSTOM_ATTRIBUTES: roomData.CUSTOM_ATTRIBUTES,
           DEPOSIT_PERCENTAGE: roomData.DEPOSIT_PERCENTAGE,
         };
 
-        // Save từng phòng một
+        // Save từng phòng một, middleware sẽ xử lý ROOM_NUMBER
         const newRoom = new ROOM_MODEL(newRoomData);
-        await newRoom.save();
+        await newRoom.save(); // Gọi middleware pre('save') để thiết lập ROOM_NUMBER
         roomsToAdd.push(newRoom);
       }
 
@@ -92,25 +82,28 @@ class ROOM_SERVICE {
     }
   }
 
-  async findLargestRoomNumberOnFloor(floor) {
+  async generateRoomNumber(floor, hotelId) {
     try {
-      // Tìm tất cả các phòng trên tầng được chỉ định
-      const roomsOnFloor = await ROOM_MODEL.find({ FLOOR: floor })
-        .sort({ ROOM_NUMBER: -1 })
-        .limit(1);
+      // Tìm ROOM_NUMBER lớn nhất trên tầng hiện tại
+      const latestRoom = await ROOM_MODEL.findOne({
+        FLOOR: floor,
+        HOTEL_ID: hotelId,
+      }).sort({ ROOM_NUMBER: -1 });
 
-      // Nếu không có phòng nào trên tầng, trả về null
-      if (roomsOnFloor.length === 0) {
-        return null;
-      }
+      // Thiết lập ROOM_NUMBER tiếp theo
+      const roomNumberSuffix = latestRoom
+        ? parseInt(latestRoom.ROOM_NUMBER.slice(-2)) + 1
+        : 1; // Số phòng tiếp theo
+      const floorPrefix = floor.toString();
 
-      // Lấy số phòng lớn nhất (ROOM_NUMBER của phòng đầu tiên trong kết quả)
-      const largestRoomNumber = parseInt(roomsOnFloor[0].ROOM_NUMBER);
+      // Ghép FLOOR và ROOM_NUMBER thành ROOM_NUMBER đầy đủ
+      const newRoomNumber = `${floorPrefix}${roomNumberSuffix
+        .toString()
+        .padStart(2, "0")}`;
 
-      // Trả về số phòng lớn nhất
-      return largestRoomNumber;
+      return newRoomNumber;
     } catch (error) {
-      throw new Error("Error finding largest room number: " + error.message);
+      throw new Error("Error generating ROOM_NUMBER: " + error.message);
     }
   }
 
@@ -195,7 +188,12 @@ class ROOM_SERVICE {
               cond: {
                 $and: [
                   { $gte: ["$$availability.DATE", checkIn] },
-                  { $lt: ["$$availability.DATE", new Date(checkOut.getTime() + 24 * 60 * 60 * 1000)] },
+                  {
+                    $lt: [
+                      "$$availability.DATE",
+                      new Date(checkOut.getTime() + 24 * 60 * 60 * 1000),
+                    ],
+                  },
                   { $eq: ["$$availability.AVAILABLE", true] },
                 ],
               },
@@ -209,7 +207,12 @@ class ROOM_SERVICE {
                 cond: {
                   $and: [
                     { $gte: ["$$availability.DATE", checkIn] },
-                    { $lt: ["$$availability.DATE", new Date(checkOut.getTime() + 24 * 60 * 60 * 1000)] },
+                    {
+                      $lt: [
+                        "$$availability.DATE",
+                        new Date(checkOut.getTime() + 24 * 60 * 60 * 1000),
+                      ],
+                    },
                     { $eq: ["$$availability.AVAILABLE", true] },
                   ],
                 },
@@ -237,6 +240,49 @@ class ROOM_SERVICE {
           CUSTOM_ATTRIBUTES: 1,
           DEPOSIT_PERCENTAGE: 1,
           // availableDates: 1,
+        },
+      },
+    ]);
+
+    return rooms;
+  }
+
+  async getAllRoomsWithCartStatus(hotelId, userId) {
+
+    const hotelObjectId  = new mongoose.Types.ObjectId(hotelId);
+    const rooms = await ROOM_MODEL.aggregate([
+      {
+        $match: { HOTEL_ID: hotelObjectId }, // Lọc tất cả các phòng của khách sạn
+      },
+      {
+        $lookup: {
+          from: "carts", // Collection giỏ hàng
+          let: { roomId: "$_id" }, // Đặt biến roomId từ _id của room
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$USER_ID", new mongoose.Types.ObjectId(userId)] }, // Kiểm tra USER_ID trùng khớp
+                    {
+                      $in: ["$$roomId", "$ROOMS.ROOM_ID"], // Kiểm tra roomId có trong giỏ hàng không
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          as: "cartDetails",
+        },
+      },
+      {
+        $addFields: {
+          IS_IN_CART: { $gt: [{ $size: "$cartDetails" }, 0] }, // Nếu có dữ liệu trong cartDetails thì IS_IN_CART là true
+        },
+      },
+      {
+        $project: {
+          cartDetails: 0, // Ẩn trường cartDetails
         },
       },
     ]);

@@ -171,6 +171,26 @@ class ROOM_CONTROLLER {
       });
     }
   }
+
+  async getRooms(req, res) {
+    try {
+      const userId = req.user_id;
+      const { hotelId } = req.params;
+      const rooms = await ROOM_SERVICE.getAllRoomsWithCartStatus(hotelId,userId);
+
+      return res.status(200).json({
+        success: true,
+        data: rooms,
+      });
+    } catch (error) {
+      console.error("Error getting rooms:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Error getting rooms.",
+        error: error.message,
+      });
+    }
+  }
 }
 
 module.exports = new ROOM_CONTROLLER();

@@ -63,6 +63,49 @@ const HotelSchema = new Schema({
   IMAGES: {
     type: [String], // Lưu URL hoặc đường dẫn hình ảnh
   },
+  SERVICES: {
+    PHONG_TAM: {
+      GIAY_VE_SINH: { type: Boolean, default: false },
+      BON_TAM_HOAC_VOI_SEN: { type: Boolean, default: false },
+      DEP: { type: Boolean, default: false },
+      NHA_VE_SINH: { type: Boolean, default: false },
+      DO_VE_SINH_CA_NHAN: { type: Boolean, default: false },
+      AO_CHOANG_TAM: { type: Boolean, default: false },
+      BON_TAM: { type: Boolean, default: false },
+      VOI_SEN: { type: Boolean, default: false },
+    },
+    CHO_DAU_XE: {
+      CO_CHO_DO_XE_CONG_CONG: { type: Boolean, default: false },
+    },
+    AN_NINH: {
+      BAO_DONG_AN_NINH: { type: Boolean, default: false },
+      KET_AN_TOAN: { type: Boolean, default: false },
+    },
+    CHAM_SOC_SUC_KHOE: {
+      type: Boolean,
+      default: false,
+    },
+    DICH_VU_DOANH_NHAN: {
+      PHOTOCOPY: { type: Boolean, default: false },
+      TRUNG_TAM_DICH_VU_DOANH_NHAN: { type: Boolean, default: false },
+      TIEN_NGHI_HOP_TIEC: { type: Boolean, default: false },
+    },
+    DICH_VU_GIAT_UI: {
+      DON_PHONG_HANG_NGAY: { type: Boolean, default: false },
+      DICH_VU_LA_UI: { type: Boolean, default: false },
+      GIAT_UI: { type: Boolean, default: false },
+      GIAT_KHO: { type: Boolean, default: false },
+    },
+    DICH_VU_LE_TAN: {
+      NHAN_TRA_PHONG_RIENG: { type: Boolean, default: false },
+      GIU_HANH_LY: { type: Boolean, default: false },
+      LE_TAN_24H: { type: Boolean, default: false },
+      THU_DOI_NGOAI_TE: { type: Boolean, default: false },
+    },
+    INTERNET: { type: Boolean, default: false },
+    TIEN_ICH_TRONG_PHONG: { type: Boolean, default: false },
+    DICH_VU_AN_UONG: { type: Boolean, default: false },
+  },
 }, { 
   versionKey: false,
   timestamps: true // Tự động thêm createdAt và updatedAt

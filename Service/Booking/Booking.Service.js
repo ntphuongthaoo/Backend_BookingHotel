@@ -34,8 +34,6 @@ class BOOKING_SERVICE {
           TOTAL_PRICE_ROOM: totalPriceRoom,
         },
       ],
-      CHECKIN_DATE: checkInDate,
-      CHECKOUT_DATE: checkOutDate,
       TOTAL_PRICE: totalPriceRoom, // Tổng giá cho booking là giá phòng
       STATUS: "NotYetPaid",
       BOOKING_TYPE: "Website", // Loại đặt phòng
@@ -52,33 +50,30 @@ class BOOKING_SERVICE {
 
   async bookFromCart(userId, bookingDetails) {
     const cart = await CART_SERVICE.getCartByUserId(userId);
-    if (!cart || cart.LIST_ROOMS.length === 0) {
+    console.log('Cart retrieved:', cart);
+
+    if (!cart || !cart.LIST_ROOMS || cart.LIST_ROOMS.length === 0) {
       throw new Error("Giỏ hàng rỗng");
     }
 
-    const totalPrice = cart.LIST_ROOMS.reduce((total, hotel) => {
-      return (
-        total +
-        hotel.ROOMS.reduce((sum, room) => sum + room.TOTAL_PRICE_FOR_ROOM, 0)
-      );
-    }, 0);
+    // Chuyển đổi LIST_ROOMS để chỉ chứa các phòng thay vì cả khách sạn
+    const mappedRooms = cart.LIST_ROOMS.flatMap(hotel => hotel.ROOMS.map(room => ({
+      ROOM_ID: room.ROOM_ID,
+      START_DATE: room.START_DATE,
+      END_DATE: room.END_DATE,
+      TOTAL_PRICE_ROOM: room.TOTAL_PRICE_FOR_ROOM,
+    })));
+
+    console.log('Mapped Rooms for booking:', mappedRooms);
+
+    const totalPrice = mappedRooms.reduce((total, room) => total + (room.TOTAL_PRICE_ROOM || 0), 0);
 
     const booking = new BOOKING_MODEL({
       USER_ID: userId,
-      LIST_ROOMS: cart.LIST_ROOMS.map((hotel) => ({
-        HOTEL_ID: hotel.HOTEL_ID,
-        ROOMS: hotel.ROOMS.map((room) => ({
-          ROOM_ID: room.ROOM_ID,
-          START_DATE: room.START_DATE,
-          END_DATE: room.END_DATE,
-          TOTAL_PRICE_ROOM: room.TOTAL_PRICE_FOR_ROOM,
-        })),
-      })),
-      CHECKIN_DATE: bookingDetails.CHECKIN_DATE,
-      CHECKOUT_DATE: bookingDetails.CHECKOUT_DATE,
+      LIST_ROOMS: mappedRooms, // Truyền trực tiếp danh sách phòng
       TOTAL_PRICE: totalPrice,
-      STATUS: "Booked",
-      BOOKING_TYPE: bookingDetails.BOOKING_TYPE,
+      STATUS: "NotYetPaid",
+      BOOKING_TYPE: "Website",
       CUSTOMER_PHONE: bookingDetails.CUSTOMER_PHONE,
       CUSTOMER_NAME: bookingDetails.CUSTOMER_NAME,
       CITIZEN_ID: bookingDetails.CITIZEN_ID,
@@ -86,11 +81,8 @@ class BOOKING_SERVICE {
 
     await booking.save();
 
-    // Tách danh sách phòng đã đặt
-    const bookedRooms = cart.LIST_ROOMS.flatMap((hotel) => hotel.ROOMS);
-
     // Xóa các phòng đã đặt khỏi giỏ hàng
-    await CART_SERVICE.removeBookedRooms(userId, bookedRooms);
+    await CART_SERVICE.removeBookedRooms(userId, mappedRooms.map(room => room.ROOM_ID));
 
     return booking;
   }
