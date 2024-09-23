@@ -1,10 +1,10 @@
 const BOOKING_MODEL = require("../../Model/Booking/Booking.Model");
-const CART_SERVICE = require("../../Service/Cart/Cart.Service");
-const ROOM_SERVICE = require('../../Service/Room/Room.Service');
+const CART_MODEL = require("../../Model/Cart/Cart.Model");
+const ROOM_SERVICE = require("../../Service/Room/Room.Service");
+const ROOM_MODEL = require("../../Model/Room/Room.Model");
 
 class BOOKING_SERVICE {
   async bookRoomNow(userId, roomDetails, startDate, endDate) {
-
     const room = await ROOM_SERVICE.findRoomsById(roomDetails.ROOM_ID);
 
     if (!room) {
@@ -48,41 +48,63 @@ class BOOKING_SERVICE {
     return booking;
   }
 
-  async bookFromCart(userId, bookingDetails) {
-    const cart = await CART_SERVICE.getCartByUserId(userId);
-    console.log('Cart retrieved:', cart);
-
-    if (!cart || !cart.LIST_ROOMS || cart.LIST_ROOMS.length === 0) {
-      throw new Error("Giỏ hàng rỗng");
+  async bookFromCart(userId, bookingData) {
+    // Tìm giỏ hàng của người dùng
+    const cart = await CART_MODEL.findOne({ USER_ID: userId }).populate(
+      "ROOMS.ROOM_ID"
+    );
+    if (!cart) {
+      throw new Error("Cart not found");
     }
 
-    // Chuyển đổi LIST_ROOMS để chỉ chứa các phòng thay vì cả khách sạn
-    const mappedRooms = cart.LIST_ROOMS.flatMap(hotel => hotel.ROOMS.map(room => ({
-      ROOM_ID: room.ROOM_ID,
-      START_DATE: room.START_DATE,
-      END_DATE: room.END_DATE,
-      TOTAL_PRICE_ROOM: room.TOTAL_PRICE_FOR_ROOM,
-    })));
+    // Tính tổng giá tiền cho từng phòng và tổng cộng
+    let totalBookingPrice = 0;
+    const rooms = await Promise.all(
+      cart.ROOMS.map(async (room) => {
+        if (!room.ROOM_ID) {
+          throw new Error(`Room with ID ${room._id} not found in the database`);
+        }
 
-    console.log('Mapped Rooms for booking:', mappedRooms);
+        // Lấy thông tin chi tiết của phòng từ collection "rooms"
+        const roomDetails = await ROOM_MODEL.findById(room.ROOM_ID);
 
-    const totalPrice = mappedRooms.reduce((total, room) => total + (room.TOTAL_PRICE_ROOM || 0), 0);
+        if (!roomDetails) {
+          throw new Error(`Room details not found for room ID ${room.ROOM_ID}`);
+        }
 
+        // Tính toán giá phòng dựa trên khoảng thời gian giữa START_DATE và END_DATE
+        const numberOfNights = Math.ceil(
+          (new Date(room.END_DATE) - new Date(room.START_DATE)) /
+            (1000 * 60 * 60 * 24)
+        );
+
+        const totalPriceForRoom = roomDetails.PRICE_PERNIGHT * numberOfNights;
+
+        // Cộng giá phòng vào tổng giá booking
+        totalBookingPrice += totalPriceForRoom;
+
+        return {
+          ROOM_ID: room.ROOM_ID._id,
+          START_DATE: room.START_DATE,
+          END_DATE: room.END_DATE,
+          TOTAL_PRICE_FOR_ROOM: totalPriceForRoom,
+        };
+      })
+    );
+
+    // Tạo booking với giá đã tính
     const booking = new BOOKING_MODEL({
       USER_ID: userId,
-      LIST_ROOMS: mappedRooms, // Truyền trực tiếp danh sách phòng
-      TOTAL_PRICE: totalPrice,
-      STATUS: "NotYetPaid",
-      BOOKING_TYPE: "Website",
-      CUSTOMER_PHONE: bookingDetails.CUSTOMER_PHONE,
-      CUSTOMER_NAME: bookingDetails.CUSTOMER_NAME,
-      CITIZEN_ID: bookingDetails.CITIZEN_ID,
+      LIST_ROOMS: rooms,
+      TOTAL_PRICE: totalBookingPrice,
+      STATUS: "NotYetPaid", // Giá trị mặc định
+      BOOKING_TYPE: "Website", // Giá trị mặc định
+      CUSTOMER_PHONE: bookingData.CUSTOMER_PHONE,
+      CUSTOMER_NAME: bookingData.CUSTOMER_NAME,
+      CITIZEN_ID: bookingData.CITIZEN_ID,
     });
 
     await booking.save();
-
-    // Xóa các phòng đã đặt khỏi giỏ hàng
-    await CART_SERVICE.removeBookedRooms(userId, mappedRooms.map(room => room.ROOM_ID));
 
     return booking;
   }
@@ -90,19 +112,18 @@ class BOOKING_SERVICE {
   async updateBookingStatus(bookingId) {
     // Tìm booking dựa trên bookingId
     const booking = await BOOKING_MODEL.findById(bookingId);
-  
+
     if (!booking) {
       throw new Error("Booking không tồn tại.");
     }
-  
+
     // Cập nhật trạng thái thành "booked" khi thanh toán thành công
     booking.STATUS = "booked";
-  
+
     await booking.save();
-  
+
     return booking;
   }
-  
 
   // Hàm lấy tất cả các booking của một người dùng
   async getBookingsByUserId(userId) {

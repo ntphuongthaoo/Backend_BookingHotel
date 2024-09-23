@@ -60,7 +60,6 @@ class ROOM_SERVICE {
           IMAGES: uploadedImages,
           AVAILABILITY: availability,
           CUSTOM_ATTRIBUTES: roomData.CUSTOM_ATTRIBUTES,
-          DEPOSIT_PERCENTAGE: roomData.DEPOSIT_PERCENTAGE,
         };
 
         // Save từng phòng một, middleware sẽ xử lý ROOM_NUMBER

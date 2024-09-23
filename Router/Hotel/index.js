@@ -12,5 +12,6 @@ router.get('/getHotelsAndSearch',verifyToken, HOTEL_CONTROLLER.getHotelsAndSearc
 router.get('/getAllHotels', HOTEL_CONTROLLER.getAllHotels);
 router.get('/getHotelById/:id', HOTEL_CONTROLLER.getHotelById);
 router.get('/getServiceInHotel/:id', HOTEL_CONTROLLER.getServiceInHotel);
+router.get('/getHotelsName', HOTEL_CONTROLLER.getHotelsName);
 
 module.exports = router;

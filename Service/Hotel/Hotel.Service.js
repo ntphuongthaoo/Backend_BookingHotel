@@ -175,6 +175,10 @@ class HOTEL_SERVICE {
     const service = await HOTEL_MODEL.findById(hotelId).select('SERVICES');
     return service;
   }
+
+  async getHotelsName () {
+    return await HOTEL_MODEL.find({}, 'NAME');
+  }
 }
 
 module.exports = new HOTEL_SERVICE();

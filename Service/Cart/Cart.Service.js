@@ -100,26 +100,18 @@ class CART_SERVICE {
   }
 
   // Hàm xóa các phòng đã đặt trong giỏ hàng
-  async removeBookedRooms(userId, bookedRooms) {
-    // Tìm giỏ hàng dựa vào USER_ID
-    const cart = await CART_MODEL.findOne({ USER_ID: userId });
-    if (!cart) {
-      throw new Error("Giỏ hàng không tồn tại");
-    }
-
-    // Duyệt qua và xóa các phòng đã đặt
-    cart.ROOMS = cart.ROOMS.filter((room) => {
-      return !bookedRooms.some(
-        (bookedRoom) =>
-          bookedRoom.ROOM_ID &&
-          room.ROOM_ID &&
-          bookedRoom.ROOM_ID.equals(room.ROOM_ID)
+  async removeBookedRooms(userId, roomIds) {
+    try {
+      // Cập nhật giỏ hàng bằng cách xóa các phòng đã đặt
+      const cart = await CART_MODEL.updateOne(
+        { USER_ID: userId },
+        { $pull: { ROOMS: { ROOM_ID: { $in: roomIds } } } }
       );
-    });
-
-    // Lưu lại giỏ hàng sau khi đã xóa các phòng đã đặt
-    await cart.save();
-    return cart;
+      return cart;
+      
+    } catch (error) {
+      throw new Error("Failed to remove booked rooms from cart: " + error.message);
+    }
   }
 
   async getCartByUserId(userId) {

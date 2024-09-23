@@ -19,9 +19,9 @@ class ROOM_VALIDATED {
             'number.positive': `"FLOOR" phải là số dương`,
             'any.required': `"FLOOR" là trường bắt buộc`
         }),
-        TYPE: Joi.string().valid('Single', 'Double', 'Suite').required().messages({
+        TYPE: Joi.string().valid("Superior", "Deluxe", "Suite").required().messages({
             'string.base': `"TYPE" phải là một chuỗi`,
-            'any.only': `"TYPE" phải là một trong các giá trị: ['Single', 'Double', 'Suite']`,
+            'any.only': `"TYPE" phải là một trong các giá trị: ["Superior", "Deluxe", "Suite"]`,
             'any.required': `"TYPE" là trường bắt buộc`
         }),
         PRICE_PERNIGHT: Joi.number().positive().required().messages({
@@ -58,6 +58,9 @@ class ROOM_VALIDATED {
             view: Joi.string().optional().allow('').messages({
                 'string.base': `"view" phải là một chuỗi`
             }),
+            area: Joi.string().optional().allow('').messages({
+                'string.base': `"view" phải là một chuỗi`
+            }),
             amenities: Joi.string().optional().allow('').messages({
                 'string.base': `"amenities" phải là một chuỗi`
             }),
@@ -67,17 +70,6 @@ class ROOM_VALIDATED {
         }).optional().messages({
             'object.base': `"CUSTOM_ATTRIBUTES" phải là một đối tượng`
         }),
-        DEPOSIT_PERCENTAGE: Joi.number().min(0).max(100).required().messages({
-            'number.base': `"DEPOSIT_PERCENTAGE" phải là một số`,
-            'number.min': `"DEPOSIT_PERCENTAGE" phải nằm trong khoảng từ 0 đến 100`,
-            'number.max': `"DEPOSIT_PERCENTAGE" phải nằm trong khoảng từ 0 đến 100`,
-            'any.required': `"DEPOSIT_PERCENTAGE" là trường bắt buộc`
-        }),
-        // DISCOUNT: Joi.number().min(0).max(100).optional().messages({
-        //     'number.base': `"DISCOUNT" phải là một số`,
-        //     'number.min': `"DISCOUNT" phải nằm trong khoảng từ 0 đến 100`,
-        //     'number.max': `"DISCOUNT" phải nằm trong khoảng từ 0 đến 100`
-        // })
     });
 }
 

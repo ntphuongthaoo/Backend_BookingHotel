@@ -58,10 +58,10 @@ class HOTEL_CONTROLLER {
         return res.status(404).json({ message: "Khách sạn không tìm thấy." });
       }
     } catch (err) {
-      return res.status(500).json({ 
+      return res.status(500).json({
         message: "Lỗi khi cập nhật khách sạn!!",
-        error: err.message
-     });
+        error: err.message,
+      });
     }
   }
 
@@ -155,10 +155,26 @@ class HOTEL_CONTROLLER {
 
       return res.status(200).json({
         success: true,
-        data: service
+        data: service,
       });
+    } catch (error) {
+      console.error("Error booking from cart:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Error booking from cart.",
+        error: error.message,
+      });
+    }
+  }
 
-    }catch (error) {
+  async getHotelsName(req, res) {
+    try {
+      const name = await HOTEL_SERVICE.getHotelsName();
+      return res.status(200).json({
+        success: true,
+        data: name,
+      });
+    } catch (error) {
       console.error("Error booking from cart:", error.message);
       return res.status(500).json({
         success: false,

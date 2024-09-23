@@ -1,23 +1,7 @@
 const BOOKING_SERVICE = require("../../Service/Booking/Booking.Service");
+const CART_SERVICE = require('../../Service/Cart/Cart.Service');
 
 class BOOKING_CONTROLLER {
-//   async setUserBookingDates(req, res) {
-//     try {
-//       const userId = req.user_id;
-//       const { checkInDate, checkOutDate } = req.body;
-//       await setUserBookingDates(userId, checkInDate, checkOutDate);
-//       return res
-//         .status(200)
-//         .json({ message: "Ngày nhận phòng và trả phòng đã được lưu." });
-//     } catch (error) {
-//       console.error("Error booking room:", error.message);
-//       return res.status(500).json({
-//         success: false,
-//         message: "Error booking room.",
-//         error: error.message,
-//       });
-//     }
-//   }
 
   // Đặt phòng trực tiếp
   async bookRoomNow(req, res) {
@@ -50,16 +34,23 @@ class BOOKING_CONTROLLER {
   async bookFromCart(req, res) {
     try {
       const userId = req.user_id;
-      const { bookingDetails } = req.body;
+      const bookingData = req.body;
 
       // Gọi hàm bookFromCart
       const booking = await BOOKING_SERVICE.bookFromCart(
         userId,
-        bookingDetails
+        bookingData
       );
+
+      // Lấy danh sách Room IDs từ booking
+      const roomIds = booking.LIST_ROOMS.map(room => room.ROOM_ID);
+
+      // Xóa các phòng đã đặt khỏi giỏ hàng
+      await CART_SERVICE.removeBookedRooms(userId, roomIds);
 
       return res.status(200).json({
         success: true,
+        message: "Booking created successfully and rooms removed from cart",
         data: booking,
       });
     } catch (error) {

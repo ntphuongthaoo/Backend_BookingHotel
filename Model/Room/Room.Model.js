@@ -31,7 +31,7 @@ const RoomSchema = new Schema(
     },
     TYPE: {
       type: String,
-      enum: ["Single", "Double", "Suite"],
+      enum: ["Superior", "Deluxe", "Suite"],
       required: true,
     },
     PRICE_PERNIGHT: {
@@ -57,14 +57,13 @@ const RoomSchema = new Schema(
       amenities: {
         type: String,
       },
+      area: {
+        type: String,
+      },
       others: {
         type: Map,
         of: Schema.Types.Mixed,
       },
-    },
-    DEPOSIT_PERCENTAGE: {
-      type: Number,
-      required: true,
     },
     IS_DELETED: {
       type: Boolean,
