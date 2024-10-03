@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "ant-design-vue": "^4.2.5",
     "axios": "^1.7.5",
     "bcrypt": "^5.1.1",
     "cloudinary": "^1.41.3",

@@ -60,6 +60,9 @@ const RoomSchema = new Schema(
       area: {
         type: String,
       },
+      number_of_people: {
+        type: Number,
+      },
       others: {
         type: Map,
         of: Schema.Types.Mixed,

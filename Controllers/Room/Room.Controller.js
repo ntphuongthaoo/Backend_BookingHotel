@@ -88,6 +88,23 @@ class ROOM_CONTROLLER {
     }
   }
 
+  async getRoomsById(req, res) {
+    try {
+      const roomId = req.params.roomId;
+      const room = await ROOM_SERVICE.getRoomsById(roomId);
+
+      return res.status(200).json({
+        success: true,
+        room: room,
+      })
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
   async findRoomsByHotel(req, res) {
     try {
       const hotelId = req.params.hotelId;
@@ -123,7 +140,7 @@ class ROOM_CONTROLLER {
   }
 
   searchRooms = async (req, res) => {
-    const { hotelId, checkInDate, checkOutDate, numberOfRooms } = req.query;
+    const { hotelId, checkInDate, checkOutDate, numberOfRooms } = req.body;
 
     try {
       const rooms = await ROOM_SERVICE.searchRooms(
@@ -152,22 +169,33 @@ class ROOM_CONTROLLER {
     }
   };
 
-  async listAvailableRooms(req, res) {
+  async getAvailableRooms(req, res) {
     try {
-      const { hotelId, date } = req.query;
-      const availableRooms = await ROOM_SERVICE.listAvailableRooms(
+      const { hotelId, startDate, endDate } = req.body;
+
+      if (!hotelId || !startDate || !endDate) {
+        return res.status(400).json({
+          success: false,
+          message: "hotelId, startDate và endDate là bắt buộc.",
+        });
+      }
+
+      const availableRooms = await ROOM_SERVICE.getAvailableRooms(
         hotelId,
-        date
+        startDate,
+        endDate
       );
 
       return res.status(200).json({
         success: true,
-        rooms: availableRooms,
+        data: availableRooms,
       });
     } catch (error) {
+      console.error("Error checking room availability:", error.message);
       return res.status(500).json({
         success: false,
-        message: "Error listing available rooms: " + error.message,
+        message: "Error checking room availability.",
+        error: error.message,
       });
     }
   }

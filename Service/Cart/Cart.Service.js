@@ -30,12 +30,12 @@ class CART_SERVICE {
     }
 
     // Kiểm tra phòng đã tồn tại trong giỏ hàng hay chưa
-    const roomExists = cart.ROOMS.find(
-      (room) => room.ROOM_ID.toString() === roomId
-    );
-    if (roomExists) {
-      throw new Error("Phòng đã tồn tại trong giỏ hàng của bạn.");
-    }
+    // const roomExists = cart.ROOMS.find(
+    //   (room) => room.ROOM_ID.toString() === roomId
+    // );
+    // if (roomExists) {
+    //   throw new Error("Phòng đã tồn tại trong giỏ hàng của bạn.");
+    // }
 
     // Thêm phòng mới vào giỏ hàng
     cart.ROOMS.push({
@@ -108,9 +108,10 @@ class CART_SERVICE {
         { $pull: { ROOMS: { ROOM_ID: { $in: roomIds } } } }
       );
       return cart;
-      
     } catch (error) {
-      throw new Error("Failed to remove booked rooms from cart: " + error.message);
+      throw new Error(
+        "Failed to remove booked rooms from cart: " + error.message
+      );
     }
   }
 
@@ -151,6 +152,102 @@ class CART_SERVICE {
       },
       {
         $addFields: {
+          "ROOMS.TOTAL_PRICE_FOR_ROOM": {
+            $multiply: [
+              "$roomDetails.PRICE_PERNIGHT",
+              {
+                $ceil: {
+                  $divide: [
+                    { $subtract: ["$ROOMS.END_DATE", "$ROOMS.START_DATE"] },
+                    1000 * 60 * 60 * 24,
+                  ],
+                },
+              },
+            ],
+          },
+          "ROOMS.HOTEL_ID": "$hotelDetails._id",
+          "ROOMS.HOTEL_NAME": "$hotelDetails.NAME",
+        },
+      },
+      {
+        $group: {
+          _id: { HOTEL_ID: "$ROOMS.HOTEL_ID", HOTEL_NAME: "$ROOMS.HOTEL_NAME" },
+          ROOMS: { $push: "$ROOMS" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          HOTEL_ID: "$_id.HOTEL_ID",
+          HOTEL_NAME: "$_id.HOTEL_NAME",
+          ROOMS: 1,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          HOTELS: { $push: "$$ROOT" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          HOTELS: 1,
+        },
+      },
+    ]);
+
+    console.log(cart); // Kiểm tra kết quả để xác định nếu có vấn đề với bước nào
+
+    if (!cart || cart.length === 0) {
+      throw new Error("Cart not found");
+    }
+
+    return cart[0];
+  }
+
+  async getCartWithGroupedRoomsByHotel(userId) {
+    const cart = await CART_MODEL.aggregate([
+      {
+        $match: { USER_ID: new mongoose.Types.ObjectId(userId) },
+      },
+      {
+        $unwind: { path: "$ROOMS", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $lookup: {
+          from: "rooms",
+          localField: "ROOMS.ROOM_ID",
+          foreignField: "_id",
+          as: "roomDetails",
+        },
+      },
+      {
+        $unwind: { path: "$roomDetails", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $lookup: {
+          from: "hotels",
+          localField: "roomDetails.HOTEL_ID",
+          foreignField: "_id",
+          as: "hotelDetails",
+        },
+      },
+      {
+        $unwind: { path: "$hotelDetails", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $addFields: {
+          "ROOMS.ROOM_NUMBER": "$roomDetails.ROOM_NUMBER",
+          "ROOMS.FLOOR": "$roomDetails.FLOOR",
+          "ROOMS.TYPE": "$roomDetails.TYPE",
+          "ROOMS.PRICE_PERNIGHT": "$roomDetails.PRICE_PERNIGHT",
+          "ROOMS.DESCRIPTION": "$roomDetails.DESCRIPTION",
+          "ROOMS.IMAGES": "$roomDetails.IMAGES",
+          "ROOMS.AVAILABILITY": "$roomDetails.AVAILABILITY", // Lịch trống của phòng (nếu cần)
+          "ROOMS.CUSTOM_ATTRIBUTES": "$roomDetails.CUSTOM_ATTRIBUTES",
+          "ROOMS.IS_DELETED": "$roomDetails.IS_DELETED",
+          "ROOMS.IS_IN_CART": "$roomDetails.IS_IN_CART",
           "ROOMS.TOTAL_PRICE_FOR_ROOM": {
             $multiply: [
               "$roomDetails.PRICE_PERNIGHT",

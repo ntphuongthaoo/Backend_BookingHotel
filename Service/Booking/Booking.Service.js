@@ -5,7 +5,7 @@ const ROOM_MODEL = require("../../Model/Room/Room.Model");
 
 class BOOKING_SERVICE {
   async bookRoomNow(userId, roomDetails, startDate, endDate) {
-    const room = await ROOM_SERVICE.findRoomsById(roomDetails.ROOM_ID);
+    const room = await ROOM_SERVICE.getRoomsById(roomDetails.ROOM_ID);
 
     if (!room) {
       throw new Error("Phòng không tồn tại.");
@@ -149,18 +149,6 @@ class BOOKING_SERVICE {
       throw new Error("Lỗi khi lấy booking của người dùng");
     }
   }
-
-  //   async getBookingsByUserId(userId) {
-  //     // Tìm tất cả các booking của người dùng dựa trên USER_ID
-  //     const bookings = await BOOKING_MODEL.find({ USER_ID: userId });
-
-  //     // Nếu không có booking nào, trả về thông báo
-  //     if (!bookings || bookings.length === 0) {
-  //       throw new Error("Không tìm thấy booking nào.");
-  //     }
-
-  //     return bookings;
-  //   }
 }
 
 module.exports = new BOOKING_SERVICE();

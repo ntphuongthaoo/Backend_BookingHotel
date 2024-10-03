@@ -9,8 +9,9 @@ router.post('/createRoom', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'
 router.post('/deleteRoom/:roomId', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), ROOM_CONTROLLER.deleteRoom);
 router.post('/updateRoom/:roomId', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), ROOM_CONTROLLER.updateRoom);
 router.post('/findRoomsByHotel/:hotelId', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), ROOM_CONTROLLER.findRoomsByHotel);
-router.post('/listAvailableRooms', verifyToken, ROOM_CONTROLLER.listAvailableRooms);
 router.get('/getRooms/:hotelId', ROOM_CONTROLLER.getRooms);
-router.get('/searchRooms', verifyToken, ROOM_CONTROLLER.searchRooms);
+router.get('/getRoomById/:roomId', ROOM_CONTROLLER.getRoomsById);
+router.post('/searchRooms', ROOM_CONTROLLER.searchRooms);
+router.post('/AvailableRooms', verifyToken, ROOM_CONTROLLER.getAvailableRooms);
 
 module.exports = router;

@@ -122,7 +122,7 @@ class ROOM_SERVICE {
     return room;
   }
 
-  async findRoomsById(roomId) {
+  async getRoomsById(roomId) {
     const room = await ROOM_MODEL.findById(roomId);
     return room;
   }
@@ -143,15 +143,69 @@ class ROOM_SERVICE {
     return rooms;
   }
 
-  async listAvailableRooms(hotelId, date) {
-    const rooms = await ROOM_MODEL.find({
-      HOTEL_ID: hotelId,
-      IS_DELETED: false,
-      "AVAILABILITY.DATE": date,
-      "AVAILABILITY.AVAILABLE": true,
-    });
+  async getAvailableRooms(hotelId, startDate, endDate) {
+    const objectId = new mongoose.Types.ObjectId(hotelId);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
-    return rooms;
+    const availableRooms = await ROOM_MODEL.aggregate([
+      {
+        $match: {
+          HOTEL_ID: objectId,
+          IS_DELETED: false,
+        },
+      },
+      {
+        $lookup: {
+          from: "bookings", // Tên của collection Booking
+          let: { roomId: "$_id", startDate: start, endDate: end },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    {
+                      $gt: ["$LIST_ROOMS.END_DATE", "$$startDate"], // Ngày kết thúc phải lớn hơn ngày bắt đầu
+                    },
+                    {
+                      $lt: ["$LIST_ROOMS.START_DATE", "$$endDate"], // Ngày bắt đầu phải nhỏ hơn ngày kết thúc
+                    },
+                    {
+                      $in: ["$$roomId", "$LIST_ROOMS.ROOM_ID"], // So sánh với roomId
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                roomId: "$LIST_ROOMS.ROOM_ID",
+              },
+            },
+          ],
+          as: "bookedRooms",
+        },
+      },
+      {
+        $match: {
+          bookedRooms: { $eq: [] }, // Chỉ giữ lại các phòng không có booking
+        },
+      },
+      {
+        $project: {
+          roomNumber: "$ROOM_NUMBER",
+          availability: "$AVAILABILITY",
+          IMAGES: 1, // Lấy tất cả các thông tin có trong phòng
+          TYPE: 1,
+          CUSTOM_ATTRIBUTES: 1, // Các thuộc tính như bedType, area,...
+          PRICE_PERNIGHT: 1,
+          DESCRIPTION: 1
+        },
+      },
+    ]);
+
+    return availableRooms;
   }
 
   async searchRooms(hotelId, checkInDate, checkOutDate, numberOfRooms) {
@@ -247,8 +301,7 @@ class ROOM_SERVICE {
   }
 
   async getAllRoomsWithCartStatus(hotelId, userId) {
-
-    const hotelObjectId  = new mongoose.Types.ObjectId(hotelId);
+    const hotelObjectId = new mongoose.Types.ObjectId(hotelId);
     const rooms = await ROOM_MODEL.aggregate([
       {
         $match: { HOTEL_ID: hotelObjectId }, // Lọc tất cả các phòng của khách sạn

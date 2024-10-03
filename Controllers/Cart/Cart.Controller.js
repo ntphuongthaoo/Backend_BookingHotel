@@ -31,11 +31,38 @@ class CART_CONTROLLER {
         });
       }
 
-      const cart = await CART_SERVICE.addRoomToCart(userId, roomId, startDate, endDate);
+      // Kiểm tra nếu ngày bắt đầu và ngày kết thúc hợp lệ
+    if (new Date(startDate) >= new Date(endDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ngày kết thúc phải sau ngày bắt đầu.',
+      });
+    }
+
+    const cart = await CART_SERVICE.getCartByUserId(userId); // Đảm bảo cart được khởi tạo trước khi sử dụng
+
+    if (!cart) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy giỏ hàng.',
+      });
+    }
+
+      const roomExists = cart.ROOMS.find(
+        (room) => room.ROOM_ID.toString() === roomId
+      );
+      if (roomExists) {
+        return res.status(400).json({
+          success: false,
+          message: "Phòng đã tồn tại trong giỏ hàng của bạn."
+        });
+      }
+
+      const updatedCart  = await CART_SERVICE.addRoomToCart(userId, roomId, startDate, endDate);
   
       return res.status(200).json({
         success: true,
-        data: cart,
+        data: updatedCart ,
       });
     } catch (error) {
       console.error('Error adding room to cart:', error.message);
