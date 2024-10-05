@@ -109,20 +109,80 @@ class BOOKING_SERVICE {
     return booking;
   }
 
-  async updateBookingStatus(bookingId) {
-    // Tìm booking dựa trên bookingId
-    const booking = await BOOKING_MODEL.findById(bookingId);
+  // async updateBookingStatus(bookingId) {
+  //   // Tìm booking dựa trên bookingId
+  //   const booking = await BOOKING_MODEL.findById(bookingId);
 
-    if (!booking) {
-      throw new Error("Booking không tồn tại.");
+  //   if (!booking) {
+  //     throw new Error("Booking không tồn tại.");
+  //   }
+
+  //   // Cập nhật trạng thái thành "booked" khi thanh toán thành công
+  //   booking.STATUS = "booked";
+
+  //   await booking.save();
+
+  //   return booking;
+  // }
+
+  // Cập nhật trạng thái đơn đặt phòng và trạng thái phòng
+  async updateBookingStatus({ bookingId, status }) {
+    try {
+      // Tìm booking bằng ID
+      const booking = await BOOKING_MODEL.findById(bookingId);
+      if (!booking) throw new Error("Không tìm thấy đơn đặt phòng");
+
+      // Cập nhật trạng thái của đơn đặt phòng
+      booking.STATUS = status;
+      await booking.save();
+
+      // Cập nhật trạng thái phòng trong LIST_ROOMS của đơn đặt phòng
+      for (let room of booking.LIST_ROOMS) {
+        await this.updateRoomAvailability(
+          room.ROOM_ID,
+          room.START_DATE,
+          room.END_DATE
+        );
+      }
+
+      return {
+        statusCode: 200,
+        msg: `Trạng thái booking đã được cập nhật thành ${status}`,
+        data: booking,
+      };
+    } catch (error) {
+      return {
+        statusCode: 500,
+        msg: "Có lỗi xảy ra khi cập nhật trạng thái booking",
+        error: error.message,
+      };
     }
+  }
 
-    // Cập nhật trạng thái thành "booked" khi thanh toán thành công
-    booking.STATUS = "booked";
+  // Cập nhật AVAILABILITY của các phòng đã đặt
+  async updateRoomAvailability(roomId, startDate, endDate) {
+    try {
+      // Tìm phòng bằng ID
+      const room = await ROOM_MODEL.findById(roomId);
+      if (!room) throw new Error("Không tìm thấy phòng");
 
-    await booking.save();
+      const start = new Date(startDate);
+      const end = new Date(endDate);
 
-    return booking;
+      // Cập nhật các ngày trong AVAILABILITY của phòng
+      room.AVAILABILITY = room.AVAILABILITY.map((availability) => {
+        const availabilityDate = new Date(availability.DATE);
+        if (availabilityDate >= start && availabilityDate <= end) {
+          availability.AVAILABLE = false;
+        }
+        return availability;
+      });
+
+      // Lưu các thay đổi
+      await room.save();
+    } catch (error) {
+      throw new Error(`Có lỗi xảy ra khi cập nhật phòng: ${error.message}`);
+    }
   }
 
   // Hàm lấy tất cả các booking của một người dùng
