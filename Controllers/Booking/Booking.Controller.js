@@ -30,6 +30,46 @@ class BOOKING_CONTROLLER {
     }
   }
 
+
+  async bookRoomNows(req, res) {
+    try {
+      console.log(req.body);
+      const userId = req.user_id; // Lấy ID người dùng từ request body
+      const { roomDetails, roomsDetails } = req.body;
+
+      // Kiểm tra xem là booking 1 phòng hay nhiều phòng
+      if (roomDetails) {
+        // Nếu là 1 phòng
+        const booking = await BOOKING_SERVICE.bookRoomNows(userId, roomDetails, 'Website');
+        return res.status(200).json({
+          success: true,
+          message: 'Đặt phòng thành công!',
+          booking
+        });
+      } else if (roomsDetails) {
+        // Nếu là nhiều phòng
+        const booking = await BOOKING_SERVICE.bookRoomNows(userId, roomsDetails, 'Website');
+        return res.status(200).json({
+          success: true,
+          message: 'Đặt phòng nhiều phòng thành công!',
+          booking
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Dữ liệu phòng không hợp lệ!'
+        });
+      }
+    } catch (error) {
+      console.error("Lỗi khi đặt phòng:", error);
+      return res.status(500).json({
+        success: false,
+        message: 'Lỗi trong quá trình đặt phòng',
+        error: error.message
+      });
+    }
+  }
+
   // Đặt phòng từ giỏ hàng
   async bookFromCart(req, res) {
     try {

@@ -1,4 +1,5 @@
 const CART_SERVICE = require("../../Service/Cart/Cart.Service");
+const CART_MODEL = require("../../Model/Cart/Cart.Model");
 
 class CART_CONTROLLER {
   async createCart(req, res) {
@@ -23,30 +24,28 @@ class CART_CONTROLLER {
     try {
       const { roomId, startDate, endDate } = req.body;
       const userId = req.user_id;
-  
+
       if (!userId || !roomId || !startDate || !endDate) {
         return res.status(400).json({
           success: false,
-          message: 'All fields are required',
+          message: "All fields are required",
         });
       }
 
       // Kiểm tra nếu ngày bắt đầu và ngày kết thúc hợp lệ
-    if (new Date(startDate) >= new Date(endDate)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ngày kết thúc phải sau ngày bắt đầu.',
-      });
-    }
+      if (new Date(startDate) >= new Date(endDate)) {
+        return res.status(400).json({
+          success: false,
+          message: "Ngày kết thúc phải sau ngày bắt đầu.",
+        });
+      }
 
-    const cart = await CART_SERVICE.getCartByUserId(userId); // Đảm bảo cart được khởi tạo trước khi sử dụng
+      let cart = await CART_SERVICE.getCartByUserId(userId);
 
-    if (!cart) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy giỏ hàng.',
-      });
-    }
+      if (!cart) {
+        cart = await CART_SERVICE.createCart(userId); 
+      }
+
 
       const roomExists = cart.ROOMS.find(
         (room) => room.ROOM_ID.toString() === roomId
@@ -54,30 +53,35 @@ class CART_CONTROLLER {
       if (roomExists) {
         return res.status(400).json({
           success: false,
-          message: "Phòng đã tồn tại trong giỏ hàng của bạn."
+          message: "Phòng đã tồn tại trong giỏ hàng của bạn.",
         });
       }
 
-      const updatedCart  = await CART_SERVICE.addRoomToCart(userId, roomId, startDate, endDate);
-  
+      const updatedCart = await CART_SERVICE.addRoomToCart(
+        cart,
+        roomId,
+        startDate,
+        endDate
+      );
+
       return res.status(200).json({
         success: true,
-        data: updatedCart ,
+        data: updatedCart,
       });
     } catch (error) {
-      console.error('Error adding room to cart:', error.message);
+      console.error("Error adding room to cart:", error.message);
       return res.status(500).json({
         success: false,
-        message: 'Error adding room to cart.',
+        message: "Error adding room to cart.",
         error: error.message,
       });
     }
-  }  
+  }
 
-  async removeRoomFromCart (req, res) {
+  async removeRoomFromCart(req, res) {
     const userId = req.user_id; // Lấy từ token
     const { roomId } = req.body;
-  
+
     try {
       const updatedCart = await CART_SERVICE.removeRoomFromCart(userId, roomId);
       return res.status(200).json({
@@ -85,37 +89,43 @@ class CART_CONTROLLER {
         data: updatedCart,
       });
     } catch (error) {
-      return res.status(500).json({ 
+      return res.status(500).json({
         success: false,
-        message: error.message });
+        message: error.message,
+      });
     }
-  };
+  }
 
-  async updateRoomInCart (req, res) {
+  async updateRoomInCart(req, res) {
     try {
       const { roomId, newStartDate, newEndDate } = req.body;
       const userId = req.user_id;
-  
+
       // Gọi hàm updateRoomInCart từ service
-      const updatedCart = await CART_SERVICE.updateRoomInCart(userId, roomId, newStartDate, newEndDate);
-  
+      const updatedCart = await CART_SERVICE.updateRoomInCart(
+        userId,
+        roomId,
+        newStartDate,
+        newEndDate
+      );
+
       // Trả về kết quả cho client
       return res.status(200).json({
         success: true,
-        message: 'Cập nhật phòng thành công!',
-        cart: updatedCart
+        message: "Cập nhật phòng thành công!",
+        cart: updatedCart,
       });
     } catch (error) {
-      console.error('Error in updateRoomInCartController:', error);
+      console.error("Error in updateRoomInCartController:", error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to update room in cart',
-        error: error.message
+        message: "Failed to update room in cart",
+        error: error.message,
       });
     }
-  };
+  }
 
-  async getCartByUserId (req, res) {
+  async getCartByUserId(req, res) {
     try {
       const userId = req.user_id;
 
@@ -123,18 +133,18 @@ class CART_CONTROLLER {
 
       return res.status(200).json({
         success: true,
-        message: 'Cart retrieved successfully',
-        cart: cart
+        message: "Cart retrieved successfully",
+        cart: cart,
       });
     } catch (error) {
-      console.error('Error in getCartByUserIdController:', error);
+      console.error("Error in getCartByUserIdController:", error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to retrieve cart',
-        error: error.message
+        message: "Failed to retrieve cart",
+        error: error.message,
       });
     }
-  };
+  }
 }
 
 module.exports = new CART_CONTROLLER();

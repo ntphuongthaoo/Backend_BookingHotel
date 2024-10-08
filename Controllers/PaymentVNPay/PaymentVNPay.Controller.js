@@ -1,6 +1,5 @@
 const moment = require("moment");
 const BOOKING_SERVICE = require("../../Service/Booking/Booking.Service");
-const paymentService = require('../../Service/PaymentVNPay/PaymentVnpay.Service');
 
 
 function sortObject(obj) {
@@ -66,6 +65,8 @@ class PaymentController {
       vnp_Params["vnp_CreateDate"] = createDate;
 
       vnp_Params = sortObject(vnp_Params);
+
+      console.log(vnp_Params);
 
       let querystring = require("qs");
       let signData = querystring.stringify(vnp_Params, { encode: false });
@@ -193,6 +194,10 @@ class PaymentController {
           });
           res.status(200).json({ RspCode: "00", Message: "Success" });
         } else {
+          await BOOKING_SERVICE.updateBookingStatus({
+            status: "PaymentUnsuccessful",
+            bookingId: orderId,
+          });
           res.status(200).json({ RspCode: "01", Message: "Transaction failed" });
         }
       } else {

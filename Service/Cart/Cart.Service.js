@@ -14,28 +14,14 @@ class CART_SERVICE {
     return newCart;
   }
 
-  async addRoomToCart(userId, roomId, startDate, endDate) {
-    // Tìm giỏ hàng của người dùng
-    let cart = await CART_MODEL.findOne({ USER_ID: userId });
+  async addRoomToCart(cart, roomId, startDate, endDate) {
 
-    // Nếu giỏ hàng chưa tồn tại, tạo giỏ hàng mới
-    if (!cart) {
-      cart = await this.createCart(userId);
-    }
 
     // Lấy thông tin phòng
     const room = await ROOM_MODEL.findById(roomId);
     if (!room) {
       throw new Error("Room not found");
     }
-
-    // Kiểm tra phòng đã tồn tại trong giỏ hàng hay chưa
-    // const roomExists = cart.ROOMS.find(
-    //   (room) => room.ROOM_ID.toString() === roomId
-    // );
-    // if (roomExists) {
-    //   throw new Error("Phòng đã tồn tại trong giỏ hàng của bạn.");
-    // }
 
     // Thêm phòng mới vào giỏ hàng
     cart.ROOMS.push({

@@ -48,6 +48,68 @@ class BOOKING_SERVICE {
     return booking;
   }
 
+  async bookRoomNows(userId, roomsDetails, bookingType = 'Website') {
+    let listRooms = [];
+    let totalPrice = 0;
+  
+    // Kiểm tra nếu chỉ có một phòng (object) hoặc nhiều phòng (array)
+    const isSingleRoom = !Array.isArray(roomsDetails);
+  
+    if (isSingleRoom) {
+      // Trường hợp chỉ có một phòng
+      roomsDetails = [roomsDetails]; // Chuyển object thành mảng để xử lý dễ hơn
+    }
+  
+    for (const roomDetails of roomsDetails) {
+      const roomId = roomDetails.roomId || roomDetails.ROOM_ID;
+      const room = await ROOM_SERVICE.getRoomsById(roomId);
+  
+      if (!room) {
+        throw new Error("Phòng không tồn tại.");
+      }
+  
+      // Tính số ngày ở
+      const checkInDate = new Date(roomDetails.startDate);
+      const checkOutDate = new Date(roomDetails.endDate);
+      const days = (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24); // Tính số ngày ở
+  
+      if (days <= 0) {
+        throw new Error("Ngày trả phòng phải lớn hơn ngày nhận phòng.");
+      }
+  
+      // Tính tổng giá cho từng phòng
+      const totalPriceRoom = days * room.PRICE_PERNIGHT;
+  
+      // Thêm phòng vào danh sách phòng trong booking
+      listRooms.push({
+        ROOM_ID: roomId,
+        START_DATE: checkInDate,
+        END_DATE: checkOutDate,
+        TOTAL_PRICE_FOR_ROOM: room.PRICE_PERNIGHT,
+      });
+  
+      // Cộng tổng giá vào tổng giá booking
+      totalPrice += totalPriceRoom;
+    }
+  
+    // Tạo booking mới với thông tin phòng
+    const booking = new BOOKING_MODEL({
+      USER_ID: userId,
+      LIST_ROOMS: listRooms, // Danh sách các phòng đã đặt
+      TOTAL_PRICE: totalPrice, // Tổng giá cho tất cả các phòng
+      STATUS: "NotYetPaid",
+      BOOKING_TYPE: bookingType, // Loại đặt phòng (ví dụ: Website)
+      CUSTOMER_PHONE: roomsDetails[0].CUSTOMER_PHONE, // Thông tin khách hàng (lấy từ phòng đầu tiên)
+      CUSTOMER_NAME: roomsDetails[0].CUSTOMER_NAME,
+      CITIZEN_ID: roomsDetails[0].CITIZEN_ID,
+    });   
+  
+    // Lưu booking vào database
+    await booking.save();
+  
+    return booking;
+  }
+
   async bookFromCart(userId, bookingData) {
     // Tìm giỏ hàng của người dùng
     const cart = await CART_MODEL.findOne({ USER_ID: userId }).populate(
@@ -97,8 +159,8 @@ class BOOKING_SERVICE {
       USER_ID: userId,
       LIST_ROOMS: rooms,
       TOTAL_PRICE: totalBookingPrice,
-      STATUS: "NotYetPaid", // Giá trị mặc định
-      BOOKING_TYPE: "Website", // Giá trị mặc định
+      STATUS: "NotYetPaid", 
+      BOOKING_TYPE: "Website",
       CUSTOMER_PHONE: bookingData.CUSTOMER_PHONE,
       CUSTOMER_NAME: bookingData.CUSTOMER_NAME,
       CITIZEN_ID: bookingData.CITIZEN_ID,

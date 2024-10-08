@@ -21,7 +21,7 @@ const BookingSchema = new Schema({
       type: Date,
       required: true
     },
-    TOTAL_PRICE_ROOM: {
+    TOTAL_PRICE_FOR_ROOM: {
       type: Number,
       required: true
     }
@@ -32,7 +32,7 @@ const BookingSchema = new Schema({
   },
   STATUS: {
     type: String,
-    enum: ['NotYetPaid', 'Booked', 'CheckedIn', 'Canceled', 'CheckedOut'],
+    enum: ['NotYetPaid', 'Booked', 'PaymentUnsuccessful', 'CheckedIn', 'Canceled', 'CheckedOut'],
     required: true
   },
   BOOKING_TYPE: {
