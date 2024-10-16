@@ -18,16 +18,14 @@ const createHotelValidate = Joi.object({
       "string.base": "Tên ấp/thôn phải là một chuỗi.",
     }).optional(), // Tùy chọn cho những địa chỉ ở vùng nông thôn không có số nhà và đường
 
-    WARD: Joi.string().required().messages({
+    WARD: Joi.string().allow('').messages({
       "string.base": "Tên phường/xã phải là một chuỗi.",
       "string.empty": "Tên phường/xã không được để trống.",
-      "any.required": "Tên phường/xã là bắt buộc.",
     }),
 
-    DISTRICT: Joi.string().required().messages({
+    DISTRICT: Joi.string().allow('').messages({
       "string.base": "Tên quận/huyện phải là một chuỗi.",
       "string.empty": "Tên quận/huyện không được để trống.",
-      "any.required": "Tên quận/huyện là bắt buộc.",
     }),
 
     CITY: Joi.string().required().messages({

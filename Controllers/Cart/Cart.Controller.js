@@ -1,5 +1,6 @@
 const CART_SERVICE = require("../../Service/Cart/Cart.Service");
 const CART_MODEL = require("../../Model/Cart/Cart.Model");
+const ROOM_SERVICE = require("../../Service/Room/Room.Service")
 
 class CART_CONTROLLER {
   async createCart(req, res) {
@@ -63,6 +64,8 @@ class CART_CONTROLLER {
         startDate,
         endDate
       );
+
+      await ROOM_SERVICE.updateRoomStatus(roomId, { IS_IN_CART: true });
 
       return res.status(200).json({
         success: true,

@@ -4,49 +4,6 @@ const ROOM_SERVICE = require("../../Service/Room/Room.Service");
 const ROOM_MODEL = require("../../Model/Room/Room.Model");
 
 class BOOKING_SERVICE {
-  async bookRoomNow(userId, roomDetails, startDate, endDate) {
-    const room = await ROOM_SERVICE.getRoomsById(roomDetails.ROOM_ID);
-
-    if (!room) {
-      throw new Error("Phòng không tồn tại.");
-    }
-
-    // Tính số ngày ở
-    const checkInDate = new Date(startDate);
-    const checkOutDate = new Date(endDate);
-    const days = (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24); // Tính số ngày
-
-    if (days <= 0) {
-      throw new Error("Ngày trả phòng phải lớn hơn ngày nhận phòng.");
-    }
-
-    // Tính tổng giá dựa trên số ngày và giá mỗi đêm
-    const totalPriceRoom = days * room.PRICE_PERNIGHT;
-
-    // Tạo booking mới
-    const booking = new BOOKING_MODEL({
-      USER_ID: userId,
-      LIST_ROOMS: [
-        {
-          ROOM_ID: roomDetails.ROOM_ID,
-          START_DATE: checkInDate,
-          END_DATE: checkOutDate,
-          TOTAL_PRICE_ROOM: totalPriceRoom,
-        },
-      ],
-      TOTAL_PRICE: totalPriceRoom, // Tổng giá cho booking là giá phòng
-      STATUS: "NotYetPaid",
-      BOOKING_TYPE: "Website", // Loại đặt phòng
-      CUSTOMER_PHONE: roomDetails.CUSTOMER_PHONE,
-      CUSTOMER_NAME: roomDetails.CUSTOMER_NAME,
-      CITIZEN_ID: roomDetails.CITIZEN_ID,
-    });
-
-    // Lưu booking vào database
-    await booking.save();
-
-    return booking;
-  }
 
   async bookRoomNows(userId, roomsDetails, bookingType = 'Website') {
     let listRooms = [];
@@ -108,6 +65,11 @@ class BOOKING_SERVICE {
     await booking.save();
   
     return booking;
+  }
+
+  async getBookingHistoryByUserId(userId) {
+    const bookings = await BOOKING_MODEL.find({ USER_ID: userId });
+    return bookings;
   }
 
   async bookFromCart(userId, bookingData) {
@@ -248,28 +210,22 @@ class BOOKING_SERVICE {
   }
 
   // Hàm lấy tất cả các booking của một người dùng
-  async getBookingsByUserId(userId) {
-    try {
-      // Tìm tất cả các booking của người dùng dựa trên USER_ID
-      const bookings = await BOOKING_MODEL.find({ USER_ID: userId })
+  async getBookingHistory (userId) {
+    const bookings = await BOOKING_MODEL.find({ USER_ID: userId })
         .populate({
-          path: "LIST_ROOMS.ROOM_ID",
-          select: "name price", // Lấy thông tin cơ bản của phòng
-        })
-        .populate({
-          path: "LIST_ROOMS.HOTEL_ID",
-          select: "name address", // Lấy thông tin cơ bản của khách sạn
+          path: 'LIST_ROOMS.ROOM_ID',
+          populate: {
+            path: 'HOTEL_ID', // Lấy thông tin khách sạn từ HOTEL_ID trong Room
+            select: 'NAME',
+          },
+          select: 'ROOM_NUMBER TYPE FLOOR PRICE_PERNIGHT IMAGES CUSTOM_ATTRIBUTES',
         });
 
       if (!bookings || bookings.length === 0) {
-        throw new Error("Không tìm thấy booking nào");
+        throw new Error('Không tìm thấy booking nào');
       }
 
       return bookings;
-    } catch (error) {
-      console.error("Error in getBookingsByUserId:", error.message);
-      throw new Error("Lỗi khi lấy booking của người dùng");
-    }
   }
 }
 

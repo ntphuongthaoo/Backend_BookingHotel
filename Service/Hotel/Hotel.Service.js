@@ -4,14 +4,15 @@ const CLOUDINARY = require("../../Config/cloudinaryConfig");
 class HOTEL_SERVICE {
   async createHotel(data) {
     let uploadedImages = [];
+
     if (data.IMAGES && data.IMAGES.length > 0) {
       uploadedImages = await Promise.all(
         data.IMAGES.map(async (image) => {
-          if (image.startsWith("http")) {
+          if (typeof image === 'string' && image.startsWith("http")) {
             // Upload từ URL
             const uploadResult = await CLOUDINARY.uploader.upload(image);
             return uploadResult.secure_url;
-          } else {
+          } else if (image.path) {
             // Upload từ file cục bộ
             const uploadResult = await CLOUDINARY.uploader.upload(image.path);
             return uploadResult.secure_url;
@@ -24,48 +25,48 @@ class HOTEL_SERVICE {
     }
 
     const newHotel = new HOTEL_MODEL(data);
-
     const result = await newHotel.save();
 
     return result.toObject();
-  }
+}
 
-  async updateHotelById(id, hotelData) {
-    let uploadedImages = [];
-    if (hotelData.IMAGES && hotelData.IMAGES.length > 0) {
-        uploadedImages = await Promise.all(
-          hotelData.IMAGES.map(async (image) => {
-            if (image.startsWith("http")) {
-              // Upload từ URL
-              const uploadResult = await CLOUDINARY.uploader.upload(image);
-              return uploadResult.secure_url;
-            } else {
-              // Upload từ file cục bộ
-              const uploadResult = await CLOUDINARY.uploader.upload(image.path);
-              return uploadResult.secure_url;
-            }
-          })
-        );
-
-      hotelData.IMAGES = uploadedImages;
-    }
-
-    const updateHotel = await HOTEL_MODEL.findByIdAndUpdate(
-      id,
-      {
-        ...hotelData,
-      },
-      { new: true }
-    );
+async updateHotelById(id, hotelData) {
+  let uploadedImages = [];
   
-    return updateHotel;
+  if (hotelData.IMAGES && hotelData.IMAGES.length > 0) {
+    uploadedImages = await Promise.all(
+      hotelData.IMAGES.map(async (image) => {
+        if (typeof image === 'string' && image.startsWith("http")) {
+          // Nếu là URL thì giữ nguyên
+          return image;
+        } else if (image.path) {
+          // Nếu là file cục bộ, upload lên Cloudinary
+          const uploadResult = await CLOUDINARY.uploader.upload(image.path);
+          return uploadResult.secure_url;
+        }
+      })
+    );
+
+    // Gán danh sách ảnh đã upload vào trường IMAGES trong hotelData
+    hotelData.IMAGES = uploadedImages;
   }
+
+  const updateHotel = await HOTEL_MODEL.findByIdAndUpdate(
+    id,
+    {
+      ...hotelData,
+    },
+    { new: true }
+  );
+
+  return updateHotel;
+}
   
 
   async deleteHotel(hotelId) {
     const result = await HOTEL_MODEL.findByIdAndUpdate(
       hotelId,
-      { $set: { IS_DELETED: true } },
+      { $set: { IS_DELETED: true, STATE: false } },
       { new: true, runValidators: true } // `new: true` để trả về tài liệu đã cập nhật
     );
     if (!result) {

@@ -124,11 +124,7 @@ class PaymentController {
           });
 
           if (updateBooking) {
-            return res.status(200).json({
-              statusCode: 200,
-              msg: "Đơn hàng đã được thanh toán thành công",
-              data: updateBooking,
-            });
+            return res.redirect(`${process.env.FRONTEND_URL}/booking-history?success=true`);
           } else {
             return res.status(404).json({
               statusCode: 404,
@@ -142,11 +138,7 @@ class PaymentController {
             bookingId: orderId,
           });
 
-          return res.status(400).json({
-            statusCode: 400,
-            msg: "Giao dịch không thành công",
-            data: updateBooking,
-          });
+          return res.redirect(`${process.env.FRONTEND_URL}/booking-history?success=false`);
         }
       } else {
         return res.status(500).json({

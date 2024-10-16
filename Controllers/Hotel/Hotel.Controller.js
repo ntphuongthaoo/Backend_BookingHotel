@@ -1,5 +1,7 @@
 const HOTEL_MODEL = require("../../Model/Hotel/Hotel.Model");
 const HOTEL_SERVICE = require("../../Service/Hotel/Hotel.Service");
+const CLOUDINARY = require("../../Config/cloudinaryConfig");
+
 const {
   createHotelValidate,
 } = require("../../Model/Hotel/validate/validateHotel");
@@ -8,7 +10,7 @@ class HOTEL_CONTROLLER {
   async createHotel(req, res) {
     const payload = req.body;
     const { error, value } = createHotelValidate.validate(payload);
-
+  
     if (error) {
       const errors = error.details.reduce((acc, current) => {
         acc[current.context.key] = current.message;
@@ -16,39 +18,88 @@ class HOTEL_CONTROLLER {
       }, {});
       return res.status(400).json({ errors });
     }
+  
     try {
-      // **Upload ảnh từ request nếu có**
+      let uploadedImages = [];
+  
+      // **Upload ảnh từ file (nếu có)**
       if (req.files && req.files.length > 0) {
-        const images = req.files.map((file) => ({ path: file.path })); // Lấy đường dẫn tạm thời từ Multer
-        roomData.IMAGES = images;
+        uploadedImages = await Promise.all(
+          req.files.map(async (file) => {
+            const uploadResult = await CLOUDINARY.uploader.upload(file.path); // Upload lên Cloudinary
+            return uploadResult.secure_url; // Trả về URL ảnh đã upload
+          })
+        );
       }
+  
+      // **Upload ảnh từ URL (nếu có)**
+      if (payload.IMAGES && payload.IMAGES.length > 0) {
+        const urlUploads = await Promise.all(
+          payload.IMAGES.map(async (imageUrl) => {
+            if (imageUrl.startsWith('http')) {
+              const uploadResult = await CLOUDINARY.uploader.upload(imageUrl); // Upload từ URL
+              return uploadResult.secure_url;
+            }
+          })
+        );
+        uploadedImages = uploadedImages.concat(urlUploads); // Kết hợp cả ảnh từ file và URL
+      }
+  
+      // Gán ảnh đã upload vào payload
+      payload.IMAGES = uploadedImages;
+  
       const hotel = await HOTEL_SERVICE.createHotel(payload);
       return res.status(200).json({
         success: true,
-        message: "Tạo khách sạn thành công!!",
+        message: "Tạo khách sạn thành công!",
         data: hotel,
       });
     } catch (err) {
       console.error(err); // Ghi lỗi ra console để kiểm tra
       return res.status(500).json({
         success: false,
-        message: "Tạo khách sạn thất bại!!",
+        message: "Tạo khách sạn thất bại!",
         error: err.message, // Trả về thông tin lỗi chi tiết
       });
     }
-  }
+  }    
 
   async updateHotel(req, res) {
-    const { id } = req.params;
-    const hotelData = req.body;
+    const hotelId = req.params.id;
+    const payload = req.body;
+  
     try {
-      // **Upload ảnh từ request nếu có**
+      let uploadedImages = [];
+  
+      // **Upload ảnh từ file (nếu có)**
       if (req.files && req.files.length > 0) {
-        const images = req.files.map((file) => ({ path: file.path })); // Lấy đường dẫn tạm thời từ Multer
-        roomData.IMAGES = images;
+        uploadedImages = await Promise.all(
+          req.files.map(async (file) => {
+            const uploadResult = await CLOUDINARY.uploader.upload(file.path); // Upload lên Cloudinary
+            return uploadResult.secure_url; // Trả về URL ảnh đã upload
+          })
+        );
       }
-      const updatedHotel = await HOTEL_SERVICE.updateHotelById(id, hotelData);
-
+  
+      // **Upload ảnh từ URL (nếu có)**
+      if (payload.IMAGES && payload.IMAGES.length > 0) {
+        const urlUploads = await Promise.all(
+          payload.IMAGES.map(async (imageUrl) => {
+            if (imageUrl.startsWith('http')) {
+              const uploadResult = await CLOUDINARY.uploader.upload(imageUrl); // Upload từ URL
+              return uploadResult.secure_url;
+            }
+          })
+        );
+        uploadedImages = uploadedImages.concat(urlUploads); // Kết hợp cả ảnh từ file và URL
+      }
+  
+      // Gán ảnh đã upload vào payload
+      payload.IMAGES = uploadedImages;
+  
+      // Gọi service để cập nhật khách sạn
+      const updatedHotel = await HOTEL_SERVICE.updateHotelById(hotelId, payload);
+  
       if (updatedHotel) {
         return res.status(200).json({
           message: "Khách sạn đã được cập nhật thành công.",
@@ -59,12 +110,12 @@ class HOTEL_CONTROLLER {
       }
     } catch (err) {
       return res.status(500).json({
-        message: "Lỗi khi cập nhật khách sạn!!",
+        message: "Lỗi khi cập nhật khách sạn!",
         error: err.message,
       });
     }
-  }
-
+  }  
+  
   async deleteHotel(req, res) {
     try {
       const { hotelId } = req.params;

@@ -27,19 +27,10 @@ const ReviewSchema = new Schema({
   STATUS: {
     type: Boolean,
     required: true
-  },
-  CREATE_AT: {
-    type: Date,
-    default: Date.now,
-    required: true
-  },
-  UPDATE_AT: {
-    type: Date,
-    default: Date.now,
-    required: true
   }
 }, {
-  versionKey: false
+  versionKey: false,
+  timestamps: true
 });
 
 const Review = mongoose.model('Review', ReviewSchema);

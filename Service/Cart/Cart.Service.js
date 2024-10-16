@@ -106,91 +106,91 @@ class CART_SERVICE {
     return cart;
   }
 
-  async getCartWithGroupedRoomsByHotel(userId) {
-    const cart = await CART_MODEL.aggregate([
-      {
-        $match: { USER_ID: new mongoose.Types.ObjectId(userId) },
-      },
-      {
-        $unwind: { path: "$ROOMS", preserveNullAndEmptyArrays: true },
-      },
-      {
-        $lookup: {
-          from: "rooms",
-          localField: "ROOMS.ROOM_ID",
-          foreignField: "_id",
-          as: "roomDetails",
-        },
-      },
-      {
-        $unwind: { path: "$roomDetails", preserveNullAndEmptyArrays: true },
-      },
-      {
-        $lookup: {
-          from: "hotels",
-          localField: "roomDetails.HOTEL_ID",
-          foreignField: "_id",
-          as: "hotelDetails",
-        },
-      },
-      {
-        $unwind: { path: "$hotelDetails", preserveNullAndEmptyArrays: true },
-      },
-      {
-        $addFields: {
-          "ROOMS.TOTAL_PRICE_FOR_ROOM": {
-            $multiply: [
-              "$roomDetails.PRICE_PERNIGHT",
-              {
-                $ceil: {
-                  $divide: [
-                    { $subtract: ["$ROOMS.END_DATE", "$ROOMS.START_DATE"] },
-                    1000 * 60 * 60 * 24,
-                  ],
-                },
-              },
-            ],
-          },
-          "ROOMS.HOTEL_ID": "$hotelDetails._id",
-          "ROOMS.HOTEL_NAME": "$hotelDetails.NAME",
-        },
-      },
-      {
-        $group: {
-          _id: { HOTEL_ID: "$ROOMS.HOTEL_ID", HOTEL_NAME: "$ROOMS.HOTEL_NAME" },
-          ROOMS: { $push: "$ROOMS" },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          HOTEL_ID: "$_id.HOTEL_ID",
-          HOTEL_NAME: "$_id.HOTEL_NAME",
-          ROOMS: 1,
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          HOTELS: { $push: "$$ROOT" },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          HOTELS: 1,
-        },
-      },
-    ]);
+  // async getCartWithGroupedRoomsByHotel(userId) {
+  //   const cart = await CART_MODEL.aggregate([
+  //     {
+  //       $match: { USER_ID: new mongoose.Types.ObjectId(userId) },
+  //     },
+  //     {
+  //       $unwind: { path: "$ROOMS", preserveNullAndEmptyArrays: true },
+  //     },
+  //     {
+  //       $lookup: {
+  //         from: "rooms",
+  //         localField: "ROOMS.ROOM_ID",
+  //         foreignField: "_id",
+  //         as: "roomDetails",
+  //       },
+  //     },
+  //     {
+  //       $unwind: { path: "$roomDetails", preserveNullAndEmptyArrays: true },
+  //     },
+  //     {
+  //       $lookup: {
+  //         from: "hotels",
+  //         localField: "roomDetails.HOTEL_ID",
+  //         foreignField: "_id",
+  //         as: "hotelDetails",
+  //       },
+  //     },
+  //     {
+  //       $unwind: { path: "$hotelDetails", preserveNullAndEmptyArrays: true },
+  //     },
+  //     {
+  //       $addFields: {
+  //         "ROOMS.TOTAL_PRICE_FOR_ROOM": {
+  //           $multiply: [
+  //             "$roomDetails.PRICE_PERNIGHT",
+  //             {
+  //               $ceil: {
+  //                 $divide: [
+  //                   { $subtract: ["$ROOMS.END_DATE", "$ROOMS.START_DATE"] },
+  //                   1000 * 60 * 60 * 24,
+  //                 ],
+  //               },
+  //             },
+  //           ],
+  //         },
+  //         "ROOMS.HOTEL_ID": "$hotelDetails._id",
+  //         "ROOMS.HOTEL_NAME": "$hotelDetails.NAME",
+  //       },
+  //     },
+  //     {
+  //       $group: {
+  //         _id: { HOTEL_ID: "$ROOMS.HOTEL_ID", HOTEL_NAME: "$ROOMS.HOTEL_NAME" },
+  //         ROOMS: { $push: "$ROOMS" },
+  //       },
+  //     },
+  //     {
+  //       $project: {
+  //         _id: 0,
+  //         HOTEL_ID: "$_id.HOTEL_ID",
+  //         HOTEL_NAME: "$_id.HOTEL_NAME",
+  //         ROOMS: 1,
+  //       },
+  //     },
+  //     {
+  //       $group: {
+  //         _id: null,
+  //         HOTELS: { $push: "$$ROOT" },
+  //       },
+  //     },
+  //     {
+  //       $project: {
+  //         _id: 0,
+  //         HOTELS: 1,
+  //       },
+  //     },
+  //   ]);
 
-    console.log(cart); // Kiểm tra kết quả để xác định nếu có vấn đề với bước nào
+  //   console.log(cart); // Kiểm tra kết quả để xác định nếu có vấn đề với bước nào
 
-    if (!cart || cart.length === 0) {
-      throw new Error("Cart not found");
-    }
+  //   if (!cart || cart.length === 0) {
+  //     throw new Error("Cart not found");
+  //   }
 
-    return cart[0];
-  }
+  //   return cart[0];
+  // }
 
   async getCartWithGroupedRoomsByHotel(userId) {
     const cart = await CART_MODEL.aggregate([

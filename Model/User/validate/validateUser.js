@@ -90,7 +90,9 @@ class USER_VALIDATES {
         "string.min": "Mật khẩu phải có độ dài ít nhất là {#limit} ký tự.",
         "string.max": "Mật khẩu phải có độ dài nhiều nhất là {#limit} ký tự.",
         "any.required": "Mật khẩu là bắt buộc."
-      })
+      }),
+      
+      HOTEL_ID: Joi.string().optional().allow(null),
   });
 
   static validateUserId(userId) {

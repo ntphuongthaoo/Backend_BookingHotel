@@ -13,11 +13,11 @@ const AddressSchema = new Schema({
   },
   WARD: { // Xã/Phường
     type: String,
-    required: true // Bắt buộc nhập xã/phường
+    required: false // Bắt buộc nhập xã/phường
   },
   DISTRICT: { // Huyện/Quận
     type: String,
-    required: true // Bắt buộc nhập huyện/quận
+    required: false // Bắt buộc nhập huyện/quận
   },
   CITY: { // Tỉnh/Thành phố
     type: String,

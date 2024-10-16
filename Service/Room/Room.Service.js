@@ -115,11 +115,14 @@ class ROOM_SERVICE {
     return room;
   }
 
-  async updateRoom(roomId, updateData) {
-    const room = await ROOM_MODEL.findByIdAndUpdate(roomId, updateData, {
-      new: true,
-    });
-    return room;
+  async updateRoomStatus(roomId, updateData) {
+    const updatedRoom = await ROOM_MODEL.findByIdAndUpdate(
+      roomId,
+      { $set: updateData },
+      { new: true } 
+    );
+
+    return updatedRoom;
   }
 
   async getRoomsById(roomId) {
@@ -156,40 +159,25 @@ class ROOM_SERVICE {
         },
       },
       {
-        $lookup: {
-          from: "bookings", // Tên của collection Booking
-          let: { roomId: "$_id", startDate: start, endDate: end },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    {
-                      $gt: ["$LIST_ROOMS.END_DATE", "$$startDate"], // Ngày kết thúc phải lớn hơn ngày bắt đầu
-                    },
-                    {
-                      $lt: ["$LIST_ROOMS.START_DATE", "$$endDate"], // Ngày bắt đầu phải nhỏ hơn ngày kết thúc
-                    },
-                    {
-                      $in: ["$$roomId", "$LIST_ROOMS.ROOM_ID"], // So sánh với roomId
-                    },
-                  ],
-                },
+        $addFields: {
+          unavailableDates: {
+            $filter: {
+              input: "$AVAILABILITY",
+              as: "availability",
+              cond: {
+                $and: [
+                  { $gte: ["$$availability.DATE", start] }, // Ngày bắt đầu phải >= start
+                  { $lt: ["$$availability.DATE", new Date(end.getTime() + 24 * 60 * 60 * 1000)] }, // Ngày kết thúc < end
+                  { $eq: ["$$availability.AVAILABLE", false] }, // Nếu ngày nào có AVAILABLE là false
+                ],
               },
             },
-            {
-              $project: {
-                _id: 0,
-                roomId: "$LIST_ROOMS.ROOM_ID",
-              },
-            },
-          ],
-          as: "bookedRooms",
+          },
         },
       },
       {
         $match: {
-          bookedRooms: { $eq: [] }, // Chỉ giữ lại các phòng không có booking
+          unavailableDates: { $eq: [] }, // Loại bỏ các phòng có bất kỳ ngày nào không khả dụng
         },
       },
       {
@@ -208,23 +196,23 @@ class ROOM_SERVICE {
     return availableRooms;
   }
 
+  
+  
+
   async searchRooms(hotelId, checkInDate, checkOutDate, numberOfRooms) {
     console.log(`Hotel ID: ${hotelId}`);
-
+  
     // Chuyển đổi hotelId thành ObjectId
     const objectId = new mongoose.Types.ObjectId(hotelId);
-
+  
     const checkIn = new Date(checkInDate);
     const checkOut = new Date(checkOutDate);
-
+  
     // Tính số ngày giữa checkInDate và checkOutDate
-    const numberOfDays = Math.ceil(
-      (checkOut - checkIn) / (1000 * 60 * 60 * 24)
-    );
-
-    // Kiểm tra số ngày
+    const numberOfDays = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+  
     console.log(`Number of Days: ${numberOfDays}`);
-
+  
     const rooms = await ROOM_MODEL.aggregate([
       {
         $match: {
@@ -233,8 +221,9 @@ class ROOM_SERVICE {
         },
       },
       {
+        // Lọc ra những ngày không khả dụng (AVAILABLE: false) trong khoảng thời gian checkIn và checkOut
         $addFields: {
-          availableDates: {
+          unavailableDates: {
             $filter: {
               input: "$AVAILABILITY",
               as: "availability",
@@ -247,41 +236,21 @@ class ROOM_SERVICE {
                       new Date(checkOut.getTime() + 24 * 60 * 60 * 1000),
                     ],
                   },
-                  { $eq: ["$$availability.AVAILABLE", true] },
+                  { $eq: ["$$availability.AVAILABLE", false] }, // Tìm ngày không khả dụng (AVAILABLE = false)
                 ],
               },
             },
           },
-          availableDatesCount: {
-            $size: {
-              $filter: {
-                input: "$AVAILABILITY",
-                as: "availability",
-                cond: {
-                  $and: [
-                    { $gte: ["$$availability.DATE", checkIn] },
-                    {
-                      $lt: [
-                        "$$availability.DATE",
-                        new Date(checkOut.getTime() + 24 * 60 * 60 * 1000),
-                      ],
-                    },
-                    { $eq: ["$$availability.AVAILABLE", true] },
-                  ],
-                },
-              },
-            },
-          },
         },
       },
       {
+        // Chỉ giữ lại những phòng không có ngày nào không khả dụng (unavailableDates là mảng rỗng)
         $match: {
-          availableDatesCount: {
-            $gte: numberOfDays,
-          },
+          unavailableDates: { $size: 0 },
         },
       },
       {
+        // Chỉ lấy những thông tin cần thiết về phòng
         $project: {
           ROOM_NUMBER: 1,
           FLOOR: 1,
@@ -292,13 +261,12 @@ class ROOM_SERVICE {
           AVAILABILITY: 1,
           CUSTOM_ATTRIBUTES: 1,
           DEPOSIT_PERCENTAGE: 1,
-          // availableDates: 1,
         },
       },
     ]);
-
+  
     return rooms;
-  }
+  }  
 
   async getAllRoomsWithCartStatus(hotelId, userId) {
     const hotelObjectId = new mongoose.Types.ObjectId(hotelId);
