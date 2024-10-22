@@ -29,24 +29,26 @@ class USER_SERVICE {
 
   async registerUser(body) {
     const hash = await this.hashPassword(body.PASSWORD);
-
+  
     const newUser = new USER_MODEL({
       FULLNAME: body.FULLNAME,
       EMAIL: body.EMAIL,
       PHONE_NUMBER: body.PHONE_NUMBER,
       PASSWORD: hash,
+      HOTEL_ID: body.HOTEL_ID ? body.HOTEL_ID : undefined, // Chỉ thêm HOTEL_ID nếu có
       ROLE: {
         ADMIN: false,
         BRANCH_MANAGER: false,
-        STAFF: false,
+        STAFF: body.HOTEL_ID ? true : false, // Nếu có HOTEL_ID thì là nhân viên
       },
       IS_BLOCKED: null,
       IS_ACTIVATED: false,
     });
-
+  
     const result = await newUser.save();
     return result.toObject();
   }
+  
 
   async hashPassword(password) {
     const saltRounds = 10;
@@ -155,71 +157,160 @@ class USER_SERVICE {
     return { success: true, message: "Password updated successfully." };
   }
 
+  // async getUsers(tabStatus, page, limit, search = "") {
+  //   // Xây dựng giai đoạn $match dựa trên tabStatus
+  //   let matchStage = {};
+
+  //   switch (tabStatus) {
+  //     case "1":
+  //       // Người dùng chưa kích hoạt và không bị chặn
+  //       matchStage = { IS_ACTIVATED: false , "IS_BLOCKED.CHECK": { $ne: true } };
+  //       break;
+  //     case "2":
+  //       // Người dùng đã kích hoạt và không bị chặn
+  //       matchStage = { IS_ACTIVATED: true, "IS_BLOCKED.CHECK": { $ne: true } };
+  //       break;
+  //     case "3":
+  //       // Người dùng bị chặn
+  //       matchStage = { "IS_BLOCKED.CHECK": true };
+  //       break;
+  //     case "4":
+  //       // Tất cả người dùng
+  //       matchStage = {};
+  //       break;
+  //     default:
+  //       throw new Error("Tab status không hợp lệ");
+  //   }
+
+  //   // Nếu có từ khóa tìm kiếm, thêm điều kiện vào giai đoạn $match
+  //   if (search) {
+  //     matchStage.$or = [
+  //       { FULLNAME: { $regex: new RegExp(search, "i") } },
+  //       { EMAIL: { $regex: new RegExp(search, "i") } },
+  //       { PHONE_NUMBER: { $regex: new RegExp(search, "i") } },
+  //     ];
+  //   }
+
+  //   try {
+  //     const aggregatePipeline = [
+  //       { $match: matchStage },
+  //       {
+  //         $facet: {
+  //           totalCount: [{ $count: "count" }],
+  //           users: [{ $skip: (page - 1) * limit }, { $limit: limit }],
+  //         },
+  //       },
+  //     ];
+
+  //     const result = await USER_MODEL.aggregate(aggregatePipeline).exec();
+
+  //     const totalCount =
+  //       result[0].totalCount.length > 0 ? result[0].totalCount[0].count : 0;
+  //     const users = result[0].users;
+
+  //     const totalPages = Math.ceil(totalCount / limit);
+
+  //     return {
+  //       users,
+  //       totalPages,
+  //       totalCount,
+  //     };
+  //   } catch (error) {
+  //     console.error("Lỗi khi truy vấn người dùng:", error);
+  //     throw new Error("Lỗi khi truy vấn người dùng");
+  //   }
+  // }
+
   async getUsers(tabStatus, page, limit, search = "") {
     // Xây dựng giai đoạn $match dựa trên tabStatus
     let matchStage = {};
 
     switch (tabStatus) {
-      case "1":
-        // Người dùng chưa kích hoạt hoặc không bị chặn
-        matchStage = {
-          $or: [{ IS_ACTIVATED: false }, { "IS_BLOCKED.CHECK": { $ne: true } }],
-        };
-        break;
-      case "2":
-        // Người dùng đã kích hoạt và không bị chặn
-        matchStage = { IS_ACTIVATED: true, "IS_BLOCKED.CHECK": { $ne: true } };
-        break;
-      case "3":
-        // Người dùng bị chặn
-        matchStage = { "IS_BLOCKED.CHECK": true };
-        break;
-      case "4":
-        // Tất cả người dùng
-        matchStage = {};
-        break;
-      default:
-        throw new Error("Tab status không hợp lệ");
+        case "1":
+            // Người dùng chưa kích hoạt và không bị chặn
+            matchStage = { IS_ACTIVATED: false, "IS_BLOCKED.CHECK": { $ne: true } };
+            break;
+        case "2":
+            // Người dùng đã kích hoạt và không bị chặn
+            matchStage = { IS_ACTIVATED: true, "IS_BLOCKED.CHECK": { $ne: true } };
+            break;
+        case "3":
+            // Người dùng bị chặn
+            matchStage = { "IS_BLOCKED.CHECK": true };
+            break;
+        case "4":
+            // Tất cả người dùng
+            matchStage = {};
+            break;
+        default:
+            throw new Error("Tab status không hợp lệ");
     }
 
     // Nếu có từ khóa tìm kiếm, thêm điều kiện vào giai đoạn $match
     if (search) {
-      matchStage.$or = [
-        { FULLNAME: { $regex: new RegExp(search, "i") } },
-        { EMAIL: { $regex: new RegExp(search, "i") } },
-        { PHONE_NUMBER: { $regex: new RegExp(search, "i") } },
-      ];
+        matchStage.$or = [
+            { FULLNAME: { $regex: new RegExp(search, "i") } },
+            { EMAIL: { $regex: new RegExp(search, "i") } },
+            { PHONE_NUMBER: { $regex: new RegExp(search, "i") } },
+        ];
     }
 
     try {
-      const aggregatePipeline = [
-        { $match: matchStage },
-        {
-          $facet: {
-            totalCount: [{ $count: "count" }],
-            users: [{ $skip: (page - 1) * limit }, { $limit: limit }],
-          },
-        },
-      ];
+        const aggregatePipeline = [
+            { $match: matchStage },
+            {
+                $lookup: {
+                    from: "hotels", // Tên collection hotel
+                    localField: "HOTEL_ID", // Trường trong collection user
+                    foreignField: "_id", // Trường trong collection hotel
+                    as: "hotel", // Tên trường kết quả
+                },
+            },
+            {
+                $unwind: {
+                    path: "$hotel",
+                    preserveNullAndEmptyArrays: true, // Giữ lại người dùng không có khách sạn
+                },
+            },
+            // Thêm điều kiện tìm kiếm tên khách sạn vào matchStage
+            {
+                $match: {
+                    $or: [
+                        matchStage,
+                        { "hotel.NAME": { $regex: new RegExp(search, "i") } } // Tìm kiếm theo tên khách sạn
+                    ],
+                },
+            },
+            {
+                $facet: {
+                    totalCount: [{ $count: "count" }],
+                    users: [{ $skip: (page - 1) * limit }, { $limit: limit }],
+                },
+            },
+        ];
 
-      const result = await USER_MODEL.aggregate(aggregatePipeline).exec();
+        const result = await USER_MODEL.aggregate(aggregatePipeline).exec();
 
-      const totalCount =
-        result[0].totalCount.length > 0 ? result[0].totalCount[0].count : 0;
-      const users = result[0].users;
+        const totalCount =
+            result[0].totalCount.length > 0 ? result[0].totalCount[0].count : 0;
+        const users = result[0].users.map(user => ({
+            ...user,
+            HOTEL_NAME: user.hotel ? user.hotel.NAME : "Không có" // Thêm tên khách sạn vào đối tượng user
+        }));
 
-      const totalPages = Math.ceil(totalCount / limit);
+        const totalPages = Math.ceil(totalCount / limit);
 
-      return {
-        users,
-        totalPages,
-        totalCount,
-      };
+        return {
+            users,
+            totalPages,
+            totalCount,
+        };
     } catch (error) {
-      console.error("Lỗi khi truy vấn người dùng:", error);
-      throw new Error("Lỗi khi truy vấn người dùng");
+        console.error("Lỗi khi truy vấn người dùng:", error);
+        throw new Error("Lỗi khi truy vấn người dùng");
     }
-  }
+}
+
 
   async blockUser(userId, isBlocked, blocked_byuserid) {
     const condition = { _id: userId };

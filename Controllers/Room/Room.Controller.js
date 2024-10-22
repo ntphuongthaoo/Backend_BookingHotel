@@ -1,10 +1,18 @@
 const ROOM_SERVICE = require("../../Service/Room/Room.Service");
 const ROOM_VALIDATED = require("../../Model/Room/validate/validateRoom");
 const METADATA_ROOM_SERVICE = require("../../Service/MetadataRoom/MetadataRoom.Service");
+const CLOUDINARY = require("../../Config/cloudinaryConfig");
 
 class ROOM_CONTROLLER {
   async createRoom(req, res) {
-    const { roomData, quantity } = req.body;
+    console.log("req.body:", req.body);
+    console.log("req.files:", req.files);
+    const roomData = JSON.parse(req.body.roomData);
+    const quantity = req.body.quantity;
+    console.log(
+      "Received roomData.CUSTOM_ATTRIBUTES.view:",
+      roomData.CUSTOM_ATTRIBUTES.view
+    );
 
     const { error } = ROOM_VALIDATED.createRoom.validate(roomData, {
       abortEarly: false,
@@ -20,11 +28,45 @@ class ROOM_CONTROLLER {
     }
 
     try {
-      // **Upload ảnh từ request nếu có**
-      if (req.files && req.files.length > 0) {
-        const images = req.files.map((file) => ({ path: file.path })); // Lấy đường dẫn tạm thời từ Multer
-        roomData.IMAGES = images;
+      // Kiểm tra xem roomData và IMAGES có tồn tại không
+      if (!roomData) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Missing room data" });
       }
+      if (!roomData.IMAGES) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Missing IMAGES field" });
+      }
+      let uploadedImages = [];
+
+      // Upload ảnh từ file (nếu có)
+      if (req.files && req.files.length > 0) {
+        const fileUploads = await Promise.all(
+          req.files.map(async (file) => {
+            const uploadResult = await CLOUDINARY.uploader.upload(file.path);
+            return uploadResult.secure_url;
+          })
+        );
+        uploadedImages = uploadedImages.concat(fileUploads);
+      }
+
+      // Upload ảnh từ URL (nếu có)
+      if (roomData.IMAGES && roomData.IMAGES.length > 0) {
+        const urlUploads = await Promise.all(
+          roomData.IMAGES.map(async (imageUrl) => {
+            if (imageUrl.startsWith("http")) {
+              const uploadResult = await CLOUDINARY.uploader.upload(imageUrl);
+              return uploadResult.secure_url;
+            }
+          })
+        );
+        uploadedImages = uploadedImages.concat(urlUploads);
+      }
+
+      // Gán ảnh đã upload vào roomData
+      roomData.IMAGES = uploadedImages;
       // Nếu validate thành công, gọi dịch vụ để thêm phòng
       const rooms = await ROOM_SERVICE.addRooms(roomData, quantity);
       return res.status(201).json({
@@ -69,12 +111,40 @@ class ROOM_CONTROLLER {
   }
 
   async updateRoom(req, res) {
+    const roomId = req.params.roomId;
+    const payload = req.body;
+    console.log('Payload received from frontend:', payload);
     try {
-      const roomId = req.params.roomId;
-      const updateData = req.body;
-
-      const room = await ROOM_SERVICE.updateRoom(roomId, updateData);
-
+      let uploadedImages = [];
+  
+      // **Upload ảnh từ file (nếu có)**
+      if (req.files && req.files.length > 0) {
+        uploadedImages = await Promise.all(
+          req.files.map(async (file) => {
+            const uploadResult = await CLOUDINARY.uploader.upload(file.path); // Upload lên Cloudinary
+            return uploadResult.secure_url; // Trả về URL ảnh đã upload
+          })
+        );
+      }
+  
+      // **Upload ảnh từ URL (nếu có)**
+      if (payload.IMAGES && payload.IMAGES.length > 0) {
+        const urlUploads = await Promise.all(
+          payload.IMAGES.map(async (imageUrl) => {
+            if (imageUrl.startsWith("http")) {
+              const uploadResult = await CLOUDINARY.uploader.upload(imageUrl); // Upload từ URL
+              return uploadResult.secure_url;
+            }
+          })
+        );
+        uploadedImages = uploadedImages.concat(urlUploads); // Kết hợp cả ảnh từ file và URL
+      }
+  
+      // Gán ảnh đã upload vào payload
+      payload.IMAGES = uploadedImages.length > 0 ? uploadedImages : undefined;
+  
+      const room = await ROOM_SERVICE.updateRoomStatus(roomId, payload);
+  
       return res.status(200).json({
         success: true,
         message: "Room updated successfully",
@@ -86,7 +156,7 @@ class ROOM_CONTROLLER {
         message: "Error updating room: " + error.message,
       });
     }
-  }
+  }  
 
   async getRoomsById(req, res) {
     try {
@@ -96,7 +166,7 @@ class ROOM_CONTROLLER {
       return res.status(200).json({
         success: true,
         room: room,
-      })
+      });
     } catch (error) {
       return res.status(500).json({
         success: false,
@@ -125,7 +195,7 @@ class ROOM_CONTROLLER {
   async getAllRoomsInHotel(req, res) {
     try {
       const hotelId = req.params.hotelId;
-      const rooms = await ROOM_SERVICE.getAllRoomsInHotel(hotelId);
+      const rooms = await ROOM_SERVICE.getAllRoomsWithStatus(hotelId);
 
       return res.status(200).json({
         success: true,
@@ -204,7 +274,10 @@ class ROOM_CONTROLLER {
     try {
       const userId = req.user_id;
       const { hotelId } = req.params;
-      const rooms = await ROOM_SERVICE.getAllRoomsWithCartStatus(hotelId,userId);
+      const rooms = await ROOM_SERVICE.getAllRoomsWithCartStatus(
+        hotelId,
+        userId
+      );
 
       return res.status(200).json({
         success: true,

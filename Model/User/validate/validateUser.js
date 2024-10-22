@@ -56,7 +56,9 @@ class USER_VALIDATES {
 
     GENDER: Joi.string().valid('Nam', 'Nữ', 'Khác').optional().messages({
       "any.only": "Giới tính phải là 'Nam', 'Nữ', hoặc 'Khác'."
-    })
+    }),
+    
+    HOTEL_ID: Joi.string().optional().allow(null),
   });
 
   static loginValidate = Joi.object({

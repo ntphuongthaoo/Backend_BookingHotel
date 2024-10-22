@@ -2,12 +2,14 @@ const BOOKING_MODEL = require("../../Model/Booking/Booking.Model");
 const CART_MODEL = require("../../Model/Cart/Cart.Model");
 const ROOM_SERVICE = require("../../Service/Room/Room.Service");
 const ROOM_MODEL = require("../../Model/Room/Room.Model");
+const USER_MODEL = require("../../Model/User/User.Model");
+const MAIL_QUEUE = require("../../Utils/sendMail");
 
 class BOOKING_SERVICE {
-
-  async bookRoomNows(userId, roomsDetails, bookingType = 'Website') {
+  async bookRoomNows(userId, roomsDetails, bookingType = "Website", airportPickup = false) {
     let listRooms = [];
     let totalPrice = 0;
+    const airportPickupPrice = 200000; // Giá cố định cho dịch vụ đưa rước sân bay
   
     // Kiểm tra nếu chỉ có một phòng (object) hoặc nhiều phòng (array)
     const isSingleRoom = !Array.isArray(roomsDetails);
@@ -42,11 +44,16 @@ class BOOKING_SERVICE {
         ROOM_ID: roomId,
         START_DATE: checkInDate,
         END_DATE: checkOutDate,
-        TOTAL_PRICE_FOR_ROOM: room.PRICE_PERNIGHT,
+        TOTAL_PRICE_FOR_ROOM: totalPriceRoom,
       });
   
       // Cộng tổng giá vào tổng giá booking
       totalPrice += totalPriceRoom;
+    }
+  
+    // Nếu dịch vụ đưa rước sân bay được chọn, thêm giá dịch vụ vào tổng giá
+    if (airportPickup) {
+      totalPrice += airportPickupPrice;
     }
   
     // Tạo booking mới với thông tin phòng
@@ -59,13 +66,15 @@ class BOOKING_SERVICE {
       CUSTOMER_PHONE: roomsDetails[0].CUSTOMER_PHONE, // Thông tin khách hàng (lấy từ phòng đầu tiên)
       CUSTOMER_NAME: roomsDetails[0].CUSTOMER_NAME,
       CITIZEN_ID: roomsDetails[0].CITIZEN_ID,
-    });   
+      AIRPORT_PICKUP: airportPickup, // Lưu thông tin dịch vụ đưa rước sân bay
+    });
   
     // Lưu booking vào database
     await booking.save();
   
     return booking;
   }
+  
 
   async getBookingHistoryByUserId(userId) {
     const bookings = await BOOKING_MODEL.find({ USER_ID: userId });
@@ -121,7 +130,7 @@ class BOOKING_SERVICE {
       USER_ID: userId,
       LIST_ROOMS: rooms,
       TOTAL_PRICE: totalBookingPrice,
-      STATUS: "NotYetPaid", 
+      STATUS: "NotYetPaid",
       BOOKING_TYPE: "Website",
       CUSTOMER_PHONE: bookingData.CUSTOMER_PHONE,
       CUSTOMER_NAME: bookingData.CUSTOMER_NAME,
@@ -155,11 +164,15 @@ class BOOKING_SERVICE {
       // Tìm booking bằng ID
       const booking = await BOOKING_MODEL.findById(bookingId);
       if (!booking) throw new Error("Không tìm thấy đơn đặt phòng");
-
+  
+      // Lấy thông tin người dùng dựa trên USER_ID từ booking
+      const user = await USER_MODEL.findById(booking.USER_ID);
+      if (!user || !user.EMAIL) throw new Error("Không tìm thấy người dùng hoặc email không tồn tại");
+  
       // Cập nhật trạng thái của đơn đặt phòng
       booking.STATUS = status;
       await booking.save();
-
+  
       // Cập nhật trạng thái phòng trong LIST_ROOMS của đơn đặt phòng
       for (let room of booking.LIST_ROOMS) {
         await this.updateRoomAvailability(
@@ -168,11 +181,34 @@ class BOOKING_SERVICE {
           room.END_DATE
         );
       }
-
+  
+      // Gửi email xác nhận nếu trạng thái là 'Booked'
+      if (status === 'Booked') {
+        const emailContent = `
+          <h2>Xin chào ${user.FULLNAME},</h2>
+          <p>Chúc mừng bạn đã đặt phòng thành công với mã đơn hàng ${bookingId}. Chi tiết đơn hàng như sau:</p>
+          <ul>
+            <li>Tên khách hàng: ${booking.CUSTOMER_NAME}</li>
+            <li>Thời gian đặt phòng: ${booking.LIST_ROOMS[0].START_DATE} - ${booking.LIST_ROOMS[0].END_DATE}</li>
+            <li>Tổng tiền: ${booking.TOTAL_PRICE} VND</li>
+          </ul>
+          <p>Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!</p>
+        `;
+  
+        // Đưa email vào hàng đợi
+        await MAIL_QUEUE.enqueue({
+          email: user.EMAIL,
+          otp: '', // Không cần OTP cho xác nhận booking
+          otpType: 'BookingConfirmation',
+          content: emailContent,
+        });
+      }
+  
       return {
         statusCode: 200,
         msg: `Trạng thái booking đã được cập nhật thành ${status}`,
         data: booking,
+        user,
       };
     } catch (error) {
       return {
@@ -210,23 +246,60 @@ class BOOKING_SERVICE {
   }
 
   // Hàm lấy tất cả các booking của một người dùng
-  async getBookingHistory (userId) {
-    const bookings = await BOOKING_MODEL.find({ USER_ID: userId })
-        .populate({
-          path: 'LIST_ROOMS.ROOM_ID',
-          populate: {
-            path: 'HOTEL_ID', // Lấy thông tin khách sạn từ HOTEL_ID trong Room
-            select: 'NAME',
-          },
-          select: 'ROOM_NUMBER TYPE FLOOR PRICE_PERNIGHT IMAGES CUSTOM_ATTRIBUTES',
-        });
+  async getBookingHistory(userId) {
+    const bookings = await BOOKING_MODEL.find({ USER_ID: userId }).populate({
+      path: "LIST_ROOMS.ROOM_ID",
+      populate: {
+        path: "HOTEL_ID", // Lấy thông tin khách sạn từ HOTEL_ID trong Room
+        select: "NAME",
+      },
+      select: "ROOM_NUMBER TYPE FLOOR PRICE_PERNIGHT IMAGES CUSTOM_ATTRIBUTES",
+    });
 
-      if (!bookings || bookings.length === 0) {
-        throw new Error('Không tìm thấy booking nào');
-      }
+    if (!bookings || bookings.length === 0) {
+      throw new Error("Không tìm thấy booking nào");
+    }
 
-      return bookings;
+    return bookings;
   }
+
+  async getAllBookings(page, limit, hotelId, role) {
+    const skip = (page - 1) * limit;
+    let query = {};
+  
+    // Chỉ thêm điều kiện lọc `hotelId` nếu là nhân viên
+    if (hotelId && role !== 'ADMIN') {
+      const roomIds = await ROOM_MODEL.find({ HOTEL_ID: hotelId }).distinct("_id");
+      query["LIST_ROOMS.ROOM_ID"] = { $in: roomIds };
+    }
+  
+    const bookings = await BOOKING_MODEL.find(query)
+      .populate({
+        path: "LIST_ROOMS.ROOM_ID",
+        populate: { path: "HOTEL_ID", select: "NAME ADDRESS" },
+      })
+      .populate("USER_ID")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+  
+    const totalBookings = await BOOKING_MODEL.countDocuments(query);
+  
+    return { bookings, totalBookings };
+  }
+
+  async cancelBooking (bookingId) {
+    const booking = await BOOKING_MODEL.findById(bookingId);
+    if (!booking) {
+      throw new Error('Không tìm thấy đặt phòng.');
+    }
+
+    booking.STATUS = 'Canceled';
+    await booking.save();
+
+    return booking;
+  }
+  
 }
 
 module.exports = new BOOKING_SERVICE();

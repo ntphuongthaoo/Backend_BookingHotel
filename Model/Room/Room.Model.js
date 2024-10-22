@@ -59,7 +59,7 @@ const RoomSchema = new Schema(
         type: String,
       },
       area: {
-        type: String,
+        type: Number,
       },
       number_of_people: {
         type: Number,

@@ -7,11 +7,12 @@ const upload = require('../../Config/multerConfig');
 
 router.post('/createRoom', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), upload, ROOM_CONTROLLER.createRoom);
 router.post('/deleteRoom/:roomId', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), ROOM_CONTROLLER.deleteRoom);
-router.post('/updateRoom/:roomId', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), ROOM_CONTROLLER.updateRoom);
+router.put('/updateRoom/:roomId', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), upload, ROOM_CONTROLLER.updateRoom);
 router.post('/findRoomsByHotel/:hotelId', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), ROOM_CONTROLLER.findRoomsByHotel);
 router.get('/getRooms/:hotelId', ROOM_CONTROLLER.getRooms);
 router.get('/getRoomById/:roomId', ROOM_CONTROLLER.getRoomsById);
 router.post('/searchRooms', ROOM_CONTROLLER.searchRooms);
 router.post('/AvailableRooms', verifyToken, ROOM_CONTROLLER.getAvailableRooms);
+router.get('/getAllRoomsInHotel/:hotelId', verifyToken, ROOM_CONTROLLER.getAllRoomsInHotel);
 
 module.exports = router;

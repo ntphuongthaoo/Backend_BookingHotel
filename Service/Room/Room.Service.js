@@ -30,13 +30,13 @@ class ROOM_SERVICE {
         if (roomData.IMAGES && roomData.IMAGES.length > 0) {
           uploadedImages = await Promise.all(
             roomData.IMAGES.map(async (image) => {
-              if (image.startsWith("http")) {
+              if (typeof image === 'string' && image.startsWith("http")) {
+                // Upload từ URL
                 const uploadResult = await CLOUDINARY.uploader.upload(image);
                 return uploadResult.secure_url;
-              } else {
-                const uploadResult = await CLOUDINARY.uploader.upload(
-                  image.path
-                );
+              } else if (image.path) {
+                // Upload từ file cục bộ
+                const uploadResult = await CLOUDINARY.uploader.upload(image.path);
                 return uploadResult.secure_url;
               }
             })
@@ -116,14 +116,47 @@ class ROOM_SERVICE {
   }
 
   async updateRoomStatus(roomId, updateData) {
+
+    let uploadedImages = [];
+  
+    // Lấy dữ liệu phòng hiện tại để so sánh và hợp nhất ảnh
+    const currentRoom = await ROOM_MODEL.findById(roomId);
+    
+    if (!currentRoom) {
+      throw new Error('Room not found');
+    }
+  
+    // **Nếu có ảnh cần upload**
+    if (updateData.IMAGES && updateData.IMAGES.length > 0) {
+      uploadedImages = await Promise.all(
+          updateData.IMAGES.map(async (image) => {
+              if (typeof image === 'string' && image.startsWith("http")) {
+                  // Nếu là URL thì giữ nguyên
+                  return image;
+              } else if (image.path) {
+                  // Nếu là file cục bộ, upload lên Cloudinary
+                  const uploadResult = await CLOUDINARY.uploader.upload(image.path);
+                  return uploadResult.secure_url;
+              }
+          })
+      );
+  
+      // **Hợp nhất ảnh mới và ảnh cũ (nếu có)**
+      updateData.IMAGES = [...currentRoom.IMAGES, ...uploadedImages];
+    }
+  
+    // Cập nhật dữ liệu phòng
     const updatedRoom = await ROOM_MODEL.findByIdAndUpdate(
       roomId,
       { $set: updateData },
-      { new: true } 
+      { new: true } // Trả về dữ liệu mới sau khi cập nhật
     );
 
+    console.log('Updated room data:', updatedRoom);
+  
     return updatedRoom;
   }
+  
 
   async getRoomsById(roomId) {
     const room = await ROOM_MODEL.findById(roomId);
@@ -141,10 +174,101 @@ class ROOM_SERVICE {
   async getAllRoomsInHotel(hotelId) {
     const rooms = await ROOM_MODEL.find({
       HOTEL_ID: hotelId,
-      IS_DELETED: false,
     });
     return rooms;
   }
+
+  async getAllRoomsWithStatus(hotelId) {
+    const today = new Date().toISOString().split('T')[0]; // Chỉ lấy phần ngày hiện tại
+    const currentHour = new Date().getHours();
+  
+    const rooms = await ROOM_MODEL.aggregate([
+      {
+        $match: {
+          HOTEL_ID: new mongoose.Types.ObjectId(hotelId),
+        },
+      },
+      {
+        $lookup: {
+          from: 'bookings',
+          let: { roomId: '$_id' },
+          pipeline: [
+            { $unwind: '$LIST_ROOMS' },
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$LIST_ROOMS.ROOM_ID', '$$roomId'] },
+                    { $lte: ['$LIST_ROOMS.START_DATE', new Date()] },
+                    { $gt: ['$LIST_ROOMS.END_DATE', new Date()] },
+                    { $in: ['$STATUS', ['Booked', 'CheckedIn']] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'currentBookings',
+        },
+      },
+      {
+        $lookup: {
+          from: 'bookings',
+          let: { roomId: '$_id' },
+          pipeline: [
+            { $unwind: '$LIST_ROOMS' },
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$LIST_ROOMS.ROOM_ID', '$$roomId'] },
+                    { $eq: [{ $dateToString: { format: '%Y-%m-%d', date: '$LIST_ROOMS.END_DATE' } }, today] },
+                    { $in: ['$STATUS', ['Booked', 'CheckedIn']] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'checkoutTodayBookings',
+        },
+      },
+      {
+        $addFields: {
+          CURRENT_STATUS: {
+            $cond: {
+              if: { $gt: [{ $size: '$currentBookings' }, 0] },
+              then: 'Đã Đặt',
+              else: 'Đang Trống',
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          CURRENT_STATUS: {
+            $cond: {
+              if: { $gt: [{ $size: '$checkoutTodayBookings' }, 0] },
+              then: {
+                $cond: {
+                  if: { $lt: [currentHour, 19] },
+                  then: 'Trả Phòng',
+                  else: 'Phòng trống',
+                },
+              },
+              else: '$CURRENT_STATUS',
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          currentBookings: 0,
+          checkoutTodayBookings: 0,
+        },
+      },
+    ]);
+  
+    return rooms;
+  }  
 
   async getAvailableRooms(hotelId, startDate, endDate) {
     const objectId = new mongoose.Types.ObjectId(hotelId);

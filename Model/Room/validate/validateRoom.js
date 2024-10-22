@@ -58,7 +58,7 @@ class ROOM_VALIDATED {
             view: Joi.string().optional().allow('').messages({
                 'string.base': `"view" phải là một chuỗi`
             }),
-            area: Joi.string().optional().allow('').messages({
+            area: Joi.number().optional().allow('').messages({
                 'string.base': `"view" phải là một chuỗi`
             }),
             amenities: Joi.string().optional().allow('').messages({
