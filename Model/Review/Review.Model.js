@@ -5,6 +5,7 @@ const ReviewSchema = new Schema({
 
   USER_ID: {
     type: Schema.Types.ObjectId,
+    ref: "User",
     required: true
   },
   BOOKING_ID: {

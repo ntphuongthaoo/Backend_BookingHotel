@@ -236,6 +236,20 @@ class BOOKING_CONTROLLER {
       });
     }
   }
+
+  async getMonthlyRevenue (req, res) {
+    try {
+      const { year } = req.query;
+  
+      // Gọi service để lấy dữ liệu doanh thu
+      const revenueData = await BOOKING_SERVICE.getMonthlyRevenue(year);
+  
+      return res.json(revenueData);
+    } catch (error) {
+      console.error("Lỗi khi lấy dữ liệu doanh thu:", error);
+      return res.status(500).json({ error: "Lỗi khi lấy dữ liệu doanh thu" });
+    }
+  }
 }
 
 module.exports = new BOOKING_CONTROLLER();

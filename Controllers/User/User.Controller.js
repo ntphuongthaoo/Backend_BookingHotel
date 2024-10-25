@@ -63,27 +63,25 @@ class USER_CONTROLLER {
     const { email, otp } = req.body;
 
     try {
+      // Xác thực OTP
+      const isValid = await MailQueue.verifyOTP(email, otp, "verify_email");
+
+      if (!isValid) {
+        return res.status(400).json({ errors: { otp: "Mã OTP không chính xác hoặc đã hết hạn" } });
+      }
+
+      // Kích hoạt lại tài khoản
       const user = await USER_SERVICE.verifyOTPAndActivateUser(email, otp);
 
       if (!user) {
-        return res
-          .status(404)
-          .json({ errors: { otp: "Mã OTP không chính xác" } });
+        return res.status(404).json({ errors: { email: "Không tìm thấy người dùng" } });
       }
 
-      const otpDetail = user.OTP.find((item) => item.CODE === otp);
-      const currentTime = Date.now();
-
-      if (otpDetail.EXP_TIME < currentTime) {
-        return res.status(400).json({ errors: { otp: "Mã OTP đã hết hạn" } });
-      }
-
-      return res
-        .status(201)
-        .json({ 
-          success: true,
-          message: "Kích hoạt người dùng thành công!", 
-          user });
+      return res.status(200).json({
+        success: true,
+        message: "Xác thực email thành công! Tài khoản đã được kích hoạt.",
+        user,
+      });
     } catch (error) {
       console.error("Error verifying OTP and activating user:", error);
       res.status(400).json({ errors: { otp: error.message } });
@@ -126,6 +124,7 @@ class USER_CONTROLLER {
       }
 
       return res.status(201).json({
+        success: true,
         message: "Vui lòng kiểm tra email của bạn.",
       });
     } catch (error) {
@@ -146,7 +145,9 @@ class USER_CONTROLLER {
       await USER_SERVICE.resetPassword(email, newPassword, otp);
       return res
         .status(200)
-        .json({ message: "Password reset was successfully." });
+        .json({ 
+          success: true,
+          message: "Password reset was successfully." });
     } catch (err) {
       res.status(500).json({ error: "Error resetting password" });
     }
@@ -319,46 +320,37 @@ class USER_CONTROLLER {
     }
   };
 
-  editUser = async (req, res) => {
-    const { userId } = req.params;
+  async editUser(req, res) {
+    const userId = req.user_id;
     const payload = req.body;
-    console.log("la " + userId);
+
     try {
-      const updatedUser = await USER_SERVICE.editUser(userId, payload);
+      // Gọi service để cập nhật thông tin người dùng
+      const result = await USER_SERVICE.updateUser(userId, payload);
 
-      if (payload.EMAIL && payload.EMAIL !== updatedUser.EMAIL) {
-        const otpType = "update_email";
-        const sendMail = await MailQueue.sendVerifyEmail(
-          payload.EMAIL,
-          otpType
-        );
-
-        if (!sendMail) {
-          throw new Error("Gửi email xác minh thất bại");
-        }
-
+      // Nếu email đã thay đổi, thông báo cho người dùng kiểm tra email mới
+      if (result.emailChanged) {
         return res.status(200).json({
           success: true,
-          message:
-            "Thông tin người dùng đã được cập nhật. Vui lòng kiểm tra email để xác thực.",
-          user: updatedUser,
+          message: "Vui lòng kiểm tra email mới để xác thực.",
         });
       }
 
+      // Trả về kết quả thành công khi cập nhật hoàn tất
       return res.status(200).json({
         success: true,
-        message: "Thông tin người dùng đã được cập nhật thành công.",
-        user: updatedUser,
+        message: result.message,
+        user: result.user,
       });
     } catch (error) {
-      console.error("Error editing user:", error);
+      console.error("Lỗi khi chỉnh sửa người dùng:", error);
       return res.status(500).json({
         success: false,
         message: "Đã xảy ra lỗi khi cập nhật thông tin người dùng.",
         error: error.message,
       });
     }
-  };
+  }
 }
 
 module.exports = new USER_CONTROLLER();

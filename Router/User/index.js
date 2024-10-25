@@ -13,7 +13,7 @@ router.post('/loginUser', USER_CONTROLLER.login);
 router.get('/getUsers', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER', 'STAFF'), USER_CONTROLLER.getUsers);
 router.post('/blockUser', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), USER_CONTROLLER.blockUser);
 router.post('/logout', USER_CONTROLLER.logout);
-router.put('/updateUser/:userId', verifyToken, authorizeRoles('ADMIN', 'BRANCH_MANAGER'), USER_CONTROLLER.editUser);
+router.put('/updateUser', verifyToken, USER_CONTROLLER.editUser);
 router.get('/info',verifyToken,USER_CONTROLLER.getUserById);
 
 router.get('/profile', verifyToken, (req, res) => {

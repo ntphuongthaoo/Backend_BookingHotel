@@ -122,29 +122,44 @@ class MailQueue {
 
     async verifyOTP(email, otp, otpType) {
         try {
-          // Tìm người dùng với địa chỉ email và mã OTP truyền vào
-          const user = await USER_MODEL.findOne({ EMAIL: email, "OTP.CODE": otp });
-      
+          // Tìm người dùng với EMAIL và OTP phù hợp
+          const user = await USER_MODEL.findOne({
+            EMAIL: email,
+            OTP: {
+              $elemMatch: {
+                CODE: otp,
+                TYPE: otpType,
+                CHECK_USING: false,
+              },
+            },
+          });
+    
           if (!user) {
-            throw new Error('Invalid OTP');
+            throw new Error("Mã OTP không chính xác hoặc đã hết hạn");
           }
-      
-          // Kiểm tra loại và thời hạn của mã OTP
-          const otpDetail = user.OTP.find(item => item.CODE === otp && item.TYPE === otpType);
-          const currentTime = Date.now();
-      
+    
+          // Lấy chi tiết OTP
+          const otpDetail = user.OTP.find(
+            (item) =>
+              item.CODE === otp &&
+              item.TYPE === otpType &&
+              item.CHECK_USING === false
+          );
+    
           if (!otpDetail) {
-            throw new Error('Invalid OTP type');
+            throw new Error("OTP không hợp lệ hoặc đã được sử dụng");
           }
-      
+    
+          const currentTime = Date.now();
+    
           if (otpDetail.EXP_TIME < currentTime) {
-            throw new Error('OTP expired');
+            throw new Error("OTP đã hết hạn");
           }
-
-          return true; // Trả về true nếu OTP hợp lệ và chưa hết hạn
+    
+          return true; // OTP hợp lệ và chưa hết hạn
         } catch (error) {
-          console.error('Error verifying OTP:', error);
-          throw error; 
+          console.error("Lỗi khi xác minh OTP:", error);
+          throw error;
         }
       }
       

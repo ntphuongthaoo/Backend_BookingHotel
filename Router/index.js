@@ -5,6 +5,7 @@ const roomRouter = require('./Room');
 const cartRouter = require('./Cart');
 const bookingRouter = require('./Booking');
 const paymentRouter = require('./PaymentVNPay');
+const reviewRouter = require('./Review');
 
 function route(app) {
     app.use('/users', userRouter);
@@ -13,6 +14,7 @@ function route(app) {
     app.use('/carts', cartRouter);
     app.use('/bookings', bookingRouter);
     app.use('/payments', paymentRouter);
+    app.use('/reviews', reviewRouter);
 }
 
 module.exports = route;
