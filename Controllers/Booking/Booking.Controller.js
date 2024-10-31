@@ -90,6 +90,7 @@ class BOOKING_CONTROLLER {
       // Lấy tất cả các booking của người dùng, populate thông tin phòng và khách sạn
       const bookings = await BOOKING_SERVICE.getBookingHistory(userId);
 
+      console.log("Bookings:", bookings);
       // Nhóm các phòng theo hotelId trong từng booking
       const formattedBookings = bookings.map((booking) => {
         const hotelGroups = {};
@@ -108,7 +109,7 @@ class BOOKING_CONTROLLER {
         });
 
         return {
-          ...booking._doc, // Giữ nguyên các thuộc tính của booking
+          ...booking, // Giữ nguyên các thuộc tính của booking
           hotels: Object.values(hotelGroups), // Gộp các nhóm phòng theo hotelId
         };
       });

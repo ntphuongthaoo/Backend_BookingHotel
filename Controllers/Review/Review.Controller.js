@@ -35,9 +35,9 @@ class REVIEW_CONTROLLER {
   async getReviewByUserAndRoom (req, res) {
     try {
         const userId = req.user_id; 
-        const { roomId } = req.body;
+        const { roomId, bookingId } = req.body;
     
-        const review = await REVIEW_SERVICE.getReviewByUserAndRoom(userId, roomId);
+        const review = await REVIEW_SERVICE.getReviewByUserAndRoom(userId, roomId, bookingId );
     
         if (!review) {
           return res.status(404).json({ success: false, msg: "Người dùng chưa đánh giá phòng này." });

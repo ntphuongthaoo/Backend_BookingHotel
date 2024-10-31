@@ -10,10 +10,12 @@ const ReviewSchema = new Schema({
   },
   BOOKING_ID: {
     type: Schema.Types.ObjectId,
+    ref: "Booking",
     required: true
   },
   ROOM_ID: {
     type: Schema.Types.ObjectId,
+    ref: "Room",
     required: true
   },
   RATING: {

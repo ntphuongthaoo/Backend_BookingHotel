@@ -67,10 +67,10 @@ class REVIEW_SERVICE {
 
   }
 
-  async getReviewByUserAndRoom(userId, roomId) {
-    const review = await REVIEW_MODEL.findOne({ USER_ID: userId, ROOM_ID: roomId });
+  async getReviewByUserAndRoom(userId, roomId, bookingId) {
+    const review = await REVIEW_MODEL.findOne({ USER_ID: userId, ROOM_ID: roomId, BOOKING_ID: bookingId });
     return review;
-  }
+}
 }
 
 module.exports = new REVIEW_SERVICE();

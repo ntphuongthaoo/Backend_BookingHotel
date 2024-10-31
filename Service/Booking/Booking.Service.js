@@ -269,7 +269,7 @@ class BOOKING_SERVICE {
           availability.AVAILABLE = false;
         }
         return availability;
-      });
+      })
 
       // Lưu các thay đổi
       await room.save();
@@ -284,10 +284,10 @@ class BOOKING_SERVICE {
       path: "LIST_ROOMS.ROOM_ID",
       populate: {
         path: "HOTEL_ID", // Lấy thông tin khách sạn từ HOTEL_ID trong Room
-        select: "NAME",
+        select: "NAME ADDRESS",
       },
       select: "ROOM_NUMBER TYPE FLOOR PRICE_PERNIGHT IMAGES CUSTOM_ATTRIBUTES",
-    });
+    }).lean(); 
 
     if (!bookings || bookings.length === 0) {
       throw new Error("Không tìm thấy booking nào");
