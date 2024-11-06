@@ -42,14 +42,15 @@ class REVIEW_SERVICE {
     return newReview;
   }
 
-  async getReviewsByRoomId(roomId) {
-    const reviews = await REVIEW_MODEL.find({ ROOM_ID: roomId }).populate({
-        path: 'USER_ID',
-        select: 'FULLNAME',
-      });
-
-      return reviews;
-  }
+  async getReviewsByRoomId(roomId, page = 1, limit = 10, sort = "-createdAt") {
+    const reviews = await REVIEW_MODEL.find({ ROOM_ID: roomId })
+       .populate({ path: 'USER_ID', select: 'FULLNAME' })
+       .sort(sort)
+       .skip((page - 1) * limit)
+       .limit(Number(limit));
+ 
+    return reviews;
+ } 
 
   async updateReview(reviewId, userId, rating, comment) {
 
@@ -71,6 +72,24 @@ class REVIEW_SERVICE {
     const review = await REVIEW_MODEL.findOne({ USER_ID: userId, ROOM_ID: roomId, BOOKING_ID: bookingId });
     return review;
 }
+
+async getRoomReviewStats(roomId) {
+  const stats = await REVIEW_MODEL.aggregate([
+     { $match: { ROOM_ID: mongoose.Types.ObjectId(roomId) } },
+     {
+        $group: {
+           _id: "$ROOM_ID",
+           averageRating: { $avg: "$RATING" },
+           totalReviews: { $sum: 1 }
+        }
+     }
+  ]);
+
+  return stats[0] || { averageRating: 0, totalReviews: 0 };
+}
+
+
+
 }
 
 module.exports = new REVIEW_SERVICE();

@@ -64,6 +64,9 @@ class ROOM_VALIDATED {
             amenities: Joi.string().optional().allow('').messages({
                 'string.base': `"amenities" phải là một chuỗi`
             }),
+            number_of_people: Joi.number().optional().allow('').messages({
+                'string.base': `"view" phải là một chuỗi`
+            }),
             others: Joi.object().optional().messages({
                 'object.base': `"others" phải là một đối tượng`
             })

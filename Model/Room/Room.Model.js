@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 const MetadataRoom = require("../MetadataRoom/MetadataRoom");
-const ROOM_SERVICE = require('../../Service/Room/Room.Service');
+// const ROOM_SERVICE = require('../../Service/Room/Room.Service');
 
 const AvailabilitySchema = new Schema({
   DATE: {
@@ -84,10 +84,45 @@ const RoomSchema = new Schema(
   }
 );
 
+// RoomSchema.pre("save", async function (next) {
+//   if (this.isNew && this.FLOOR != null && (!this.ROOM_NUMBER || this.ROOM_NUMBER === "")) {
+//     try {
+//       this.ROOM_NUMBER = await ROOM_SERVICE.generateRoomNumber(this.FLOOR, this.HOTEL_ID);
+//       next();
+//     } catch (error) {
+//       next(error);
+//     }
+//   } else {
+//     next();
+//   }
+// });
+
+async function generateRoomNumber(floor, hotelId) {
+  try {
+    const latestRoom = await Room.findOne({
+      FLOOR: floor,
+      HOTEL_ID: hotelId,
+    }).sort({ ROOM_NUMBER: -1 });
+
+    const roomNumberSuffix = latestRoom
+      ? parseInt(latestRoom.ROOM_NUMBER.slice(-2)) + 1
+      : 1;
+    const floorPrefix = floor.toString();
+    const newRoomNumber = `${floorPrefix}${roomNumberSuffix
+      .toString()
+      .padStart(2, "0")}`;
+
+    return newRoomNumber;
+  } catch (error) {
+    throw new Error("Error generating ROOM_NUMBER: " + error.message);
+  }
+}
+
+// Middleware pre-save để tạo ROOM_NUMBER cho phòng mới
 RoomSchema.pre("save", async function (next) {
   if (this.isNew && this.FLOOR != null && (!this.ROOM_NUMBER || this.ROOM_NUMBER === "")) {
     try {
-      this.ROOM_NUMBER = await ROOM_SERVICE.generateRoomNumber(this.FLOOR, this.HOTEL_ID);
+      this.ROOM_NUMBER = await generateRoomNumber(this.FLOOR, this.HOTEL_ID);
       next();
     } catch (error) {
       next(error);

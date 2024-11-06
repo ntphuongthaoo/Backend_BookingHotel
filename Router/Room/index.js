@@ -13,6 +13,6 @@ router.get('/getRooms/:hotelId', ROOM_CONTROLLER.getRooms);
 router.get('/getRoomById/:roomId', ROOM_CONTROLLER.getRoomsById);
 router.post('/searchRooms', ROOM_CONTROLLER.searchRooms);
 router.post('/AvailableRooms', verifyToken, ROOM_CONTROLLER.getAvailableRooms);
-router.get('/getAllRoomsInHotel/:hotelId', verifyToken, ROOM_CONTROLLER.getAllRoomsInHotel);
+router.get('/getAllRoomsInHotel/:hotelId', ROOM_CONTROLLER.getAllRoomsInHotel);
 
 module.exports = router;

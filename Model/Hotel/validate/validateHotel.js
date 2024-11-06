@@ -10,20 +10,26 @@ const createHotelValidate = Joi.object({
     "any.required": "Tên khách sạn là bắt buộc.",
   }),
   ADDRESS: Joi.object({
-    ADDRESS_LINE: Joi.string().allow('').messages({
-      "string.base": "Địa chỉ phải là một chuỗi.",
-    }).optional(), // Tùy chọn vì có thể không có thông tin đầy đủ
+    ADDRESS_LINE: Joi.string()
+      .allow("")
+      .messages({
+        "string.base": "Địa chỉ phải là một chuỗi.",
+      })
+      .optional(), // Tùy chọn vì có thể không có thông tin đầy đủ
 
-    HAMLET: Joi.string().allow('').messages({
-      "string.base": "Tên ấp/thôn phải là một chuỗi.",
-    }).optional(), // Tùy chọn cho những địa chỉ ở vùng nông thôn không có số nhà và đường
+    HAMLET: Joi.string()
+      .allow("")
+      .messages({
+        "string.base": "Tên ấp/thôn phải là một chuỗi.",
+      })
+      .optional(), // Tùy chọn cho những địa chỉ ở vùng nông thôn không có số nhà và đường
 
-    WARD: Joi.string().allow('').messages({
+    WARD: Joi.string().allow("").messages({
       "string.base": "Tên phường/xã phải là một chuỗi.",
       "string.empty": "Tên phường/xã không được để trống.",
     }),
 
-    DISTRICT: Joi.string().allow('').messages({
+    DISTRICT: Joi.string().allow("").messages({
       "string.base": "Tên quận/huyện phải là một chuỗi.",
       "string.empty": "Tên quận/huyện không được để trống.",
     }),
@@ -34,9 +40,12 @@ const createHotelValidate = Joi.object({
       "any.required": "Tên tỉnh/thành phố là bắt buộc.",
     }),
 
-    COUNTRY: Joi.string().default('Vietnam').messages({
-      "string.base": "Tên quốc gia phải là một chuỗi.",
-    }).optional(), // Có thể bỏ qua nếu sử dụng giá trị mặc định
+    COUNTRY: Joi.string()
+      .default("Vietnam")
+      .messages({
+        "string.base": "Tên quốc gia phải là một chuỗi.",
+      })
+      .optional(), // Có thể bỏ qua nếu sử dụng giá trị mặc định
   }).required(),
   STATE: Joi.boolean().required().messages({
     "boolean.base": "Trạng thái phải là kiểu boolean.",
@@ -74,46 +83,136 @@ const createHotelValidate = Joi.object({
       "string.regex.base":
         "URL hình ảnh phải kết thúc bằng jpg, jpeg, png hoặc gif.",
     }),
-    SERVICES: Joi.object({
-      PHONG_TAM: Joi.object({
-        GIAY_VE_SINH: Joi.boolean().default(false),
-        BON_TAM_HOAC_VOI_SEN: Joi.boolean().default(false),
-        DEP: Joi.boolean().default(false),
-        NHA_VE_SINH: Joi.boolean().default(false),
-        DO_VE_SINH_CA_NHAN: Joi.boolean().default(false),
-        AO_CHOANG_TAM: Joi.boolean().default(false),
-        BON_TAM: Joi.boolean().default(false),
-        VOI_SEN: Joi.boolean().default(false),
-      }).default(),
-      CHO_DAU_XE: Joi.object({
-        CO_CHO_DO_XE_CONG_CONG: Joi.boolean().default(false),
-      }).default(),
-      AN_NINH: Joi.object({
-        BAO_DONG_AN_NINH: Joi.boolean().default(false),
-        KET_AN_TOAN: Joi.boolean().default(false),
-      }).default(),
-      CHAM_SOC_SUC_KHOE: Joi.boolean().default(false),
-      DICH_VU_DOANH_NHAN: Joi.object({
-        PHOTOCOPY: Joi.boolean().default(false),
-        TRUNG_TAM_DICH_VU_DOANH_NHAN: Joi.boolean().default(false),
-        TIEN_NGHI_HOP_TIEC: Joi.boolean().default(false),
-      }).default(),
-      DICH_VU_GIAT_UI: Joi.object({
-        DON_PHONG_HANG_NGAY: Joi.boolean().default(false),
-        DICH_VU_LA_UI: Joi.boolean().default(false),
-        GIAT_UI: Joi.boolean().default(false),
-        GIAT_KHO: Joi.boolean().default(false),
-      }).default(),
-      DICH_VU_LE_TAN: Joi.object({
-        NHAN_TRA_PHONG_RIENG: Joi.boolean().default(false),
-        GIU_HANH_LY: Joi.boolean().default(false),
-        LE_TAN_24H: Joi.boolean().default(false),
-        THU_DOI_NGOAI_TE: Joi.boolean().default(false),
-      }).default(),
-      INTERNET: Joi.boolean().default(false),
-      TIEN_ICH_TRONG_PHONG: Joi.boolean().default(false),
-      DICH_VU_AN_UONG: Joi.boolean().default(false),
-    }).default(),
+
+    RATING: Joi.number().min(1).max(5).precision(2).optional().messages({
+      "number.base": "Rating phải là một số.",
+      "number.min": "Rating phải ít nhất là {#limit}.",
+      "number.max": "Rating không được vượt quá {#limit}.",
+    }),
+  SERVICES: Joi.object({
+    PHONG_TAM: Joi.object({
+      name: Joi.string().default("Phòng tắm"),
+      GIAY_VE_SINH: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Giấy vệ sinh"),
+      }),
+      BON_TAM_HOAC_VOI_SEN: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Bồn tắm hoặc vòi sen"),
+      }),
+      DEP: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Dép"),
+      }),
+      NHA_VE_SINH: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Nhà vệ sinh"),
+      }),
+      DO_VE_SINH_CA_NHAN: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Đồ vệ sinh cá nhân"),
+      }),
+      AO_CHOANG_TAM: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Áo choàng tắm"),
+      }),
+      BON_TAM: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Bồn tắm"),
+      }),
+      VOI_SEN: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Vòi sen"),
+      }),
+    }),
+    CHO_DAU_XE: Joi.object({
+      name: Joi.string().default("Chỗ đậu xe"),
+      CO_CHO_DO_XE_CONG_CONG: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Có chỗ đỗ xe công cộng"),
+      }),
+    }),
+    AN_NINH: Joi.object({
+      name: Joi.string().default("An ninh"),
+      BAO_DONG_AN_NINH: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Báo động an ninh"),
+      }),
+      KET_AN_TOAN: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Két an toàn"),
+      }),
+    }),
+    CHAM_SOC_SUC_KHOE: Joi.object({
+      enabled: Joi.boolean().default(true),
+      name: Joi.string().default("Chăm sóc sức khỏe"),
+    }),
+    DICH_VU_DOANH_NHAN: Joi.object({
+      name: Joi.string().default("Dịch vụ doanh nhân"),
+      PHOTOCOPY: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Photocopy"),
+      }),
+      TRUNG_TAM_DICH_VU_DOANH_NHAN: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Trung tâm dịch vụ doanh nhân"),
+      }),
+      TIEN_NGHI_HOP_TIEC: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Tiện nghi họp/tiệc"),
+      }),
+    }),
+    DICH_VU_GIAT_UI: Joi.object({
+      name: Joi.string().default("Dịch vụ giặt ủi"),
+      DON_PHONG_HANG_NGAY: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Dọn phòng hàng ngày"),
+      }),
+      DICH_VU_LA_UI: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Dịch vụ là/ủi"),
+      }),
+      GIAT_UI: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Giặt ủi"),
+      }),
+      GIAT_KHO: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Giặt khô"),
+      }),
+    }),
+    DICH_VU_LE_TAN: Joi.object({
+      name: Joi.string().default("Dịch vụ lễ tân"),
+      NHAN_TRA_PHONG_RIENG: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Nhận/trả phòng riêng"),
+      }),
+      GIU_HANH_LY: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Giữ hành lý"),
+      }),
+      LE_TAN_24H: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Lễ tân 24 giờ"),
+      }),
+      THU_DOI_NGOAI_TE: Joi.object({
+        enabled: Joi.boolean().default(true),
+        name: Joi.string().default("Thu đổi ngoại tệ"),
+      }),
+    }),
+    INTERNET: Joi.object({
+      enabled: Joi.boolean().default(true),
+      name: Joi.string().default("Internet"),
+    }),
+    TIEN_ICH_TRONG_PHONG: Joi.object({
+      enabled: Joi.boolean().default(true),
+      name: Joi.string().default("Tiện ích trong phòng"),
+    }),
+    DICH_VU_AN_UONG: Joi.object({
+      enabled: Joi.boolean().default(true),
+      name: Joi.string().default("Dịch vụ ăn uống"),
+    }),
+  }).default(),
 });
 
 // Hàm kiểm tra và trả về lỗi

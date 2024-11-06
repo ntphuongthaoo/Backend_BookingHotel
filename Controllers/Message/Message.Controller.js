@@ -33,7 +33,7 @@ const getMessages = async (req, res) => {
         const sender = await User.findById(message.senderId);
         const senderName =
           sender?.ROLE?.ADMIN || sender?.ROLE?.STAFF
-            ? "TFOOD"
+            ? "ETHEREAL"
             : sender?.FULLNAME;
 
         return {

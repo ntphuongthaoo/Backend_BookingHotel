@@ -234,6 +234,85 @@ class HOTEL_CONTROLLER {
       });
     }
   }
+
+  async toggleServiceGroup(req, res) {
+    const { hotelId, serviceGroup, status } = req.body;
+
+    try {
+      const updatedHotel = await HOTEL_SERVICE.toggleAllServicesInGroup(
+        hotelId,
+        serviceGroup,
+        status
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: `Tất cả dịch vụ trong nhóm ${serviceGroup} đã được cập nhật thành ${status}`,
+        data: updatedHotel,
+      });
+    } catch (error) {
+      console.error("Error in toggleServiceGroup:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi khi cập nhật dịch vụ",
+        error: error.message,
+      });
+    }
+  }
+
+  async updateAllServiceFields(req, res) {
+    const { hotelId, SERVICES } = req.body;
+    
+    try {
+      const updatedHotel = await HOTEL_SERVICE.updateAllServiceFields(hotelId, SERVICES);
+      return res.status(200).json({
+        success: true,
+        message: "All services have been updated to true.",
+        data: updatedHotel
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Error updating all service fields",
+        error: error.message
+      });
+    }
+  }
+
+  async updateHotelRating(req, res) {
+    try {
+      const hotelId = req.params.hotelId;
+  
+      // Tính rating trung bình cho khách sạn
+      const averageRating = await HOTEL_SERVICE.calculateAverageRatingForHotel(hotelId);
+  
+      // Cập nhật rating trung bình vào khách sạn
+      await HOTEL_MODEL.findByIdAndUpdate(hotelId, { RATING: averageRating });
+  
+      res.status(200).json({
+        success: true,
+        message: 'Hotel rating updated successfully',
+        rating: averageRating
+      });
+    } catch (error) {
+      console.error('Error updating hotel rating:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update hotel rating'
+      });
+    }
+  }
+
+  async getTopBookedHotels( req, res) {
+    try {
+      const topBookedHotels = await HOTEL_SERVICE.getTopBookedHotels();
+      res.json({ success: true, data: topBookedHotels });
+    } catch (error) {
+      console.error("Lỗi khi lấy danh sách khách sạn được đặt nhiều nhất:", error);
+      res.status(500).json({ success: false, message: "Đã xảy ra lỗi khi lấy dữ liệu." });
+    }
+  }
+  
 }
 
 module.exports = new HOTEL_CONTROLLER();

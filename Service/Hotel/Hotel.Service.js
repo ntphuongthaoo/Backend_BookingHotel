@@ -1,5 +1,8 @@
 const HOTEL_MODEL = require("../../Model/Hotel/Hotel.Model");
 const CLOUDINARY = require("../../Config/cloudinaryConfig");
+const REVIEW_MODEL = require("../../Model/Review/Review.Model");
+const ROOM_MODEL = require("../../Model/Room/Room.Model");
+const BOOKING_MODEL = require("../../Model/Booking/Booking.Model");
 
 class HOTEL_SERVICE {
   async createHotel(data) {
@@ -8,7 +11,7 @@ class HOTEL_SERVICE {
     if (data.IMAGES && data.IMAGES.length > 0) {
       uploadedImages = await Promise.all(
         data.IMAGES.map(async (image) => {
-          if (typeof image === 'string' && image.startsWith("http")) {
+          if (typeof image === "string" && image.startsWith("http")) {
             // Upload từ URL
             const uploadResult = await CLOUDINARY.uploader.upload(image);
             return uploadResult.secure_url;
@@ -28,40 +31,39 @@ class HOTEL_SERVICE {
     const result = await newHotel.save();
 
     return result.toObject();
-}
-
-async updateHotelById(id, hotelData) {
-  let uploadedImages = [];
-  
-  if (hotelData.IMAGES && hotelData.IMAGES.length > 0) {
-    uploadedImages = await Promise.all(
-      hotelData.IMAGES.map(async (image) => {
-        if (typeof image === 'string' && image.startsWith("http")) {
-          // Nếu là URL thì giữ nguyên
-          return image;
-        } else if (image.path) {
-          // Nếu là file cục bộ, upload lên Cloudinary
-          const uploadResult = await CLOUDINARY.uploader.upload(image.path);
-          return uploadResult.secure_url;
-        }
-      })
-    );
-
-    // Gán danh sách ảnh đã upload vào trường IMAGES trong hotelData
-    hotelData.IMAGES = uploadedImages;
   }
 
-  const updateHotel = await HOTEL_MODEL.findByIdAndUpdate(
-    id,
-    {
-      ...hotelData,
-    },
-    { new: true }
-  );
+  async updateHotelById(id, hotelData) {
+    let uploadedImages = [];
 
-  return updateHotel;
-}
-  
+    if (hotelData.IMAGES && hotelData.IMAGES.length > 0) {
+      uploadedImages = await Promise.all(
+        hotelData.IMAGES.map(async (image) => {
+          if (typeof image === "string" && image.startsWith("http")) {
+            // Nếu là URL thì giữ nguyên
+            return image;
+          } else if (image.path) {
+            // Nếu là file cục bộ, upload lên Cloudinary
+            const uploadResult = await CLOUDINARY.uploader.upload(image.path);
+            return uploadResult.secure_url;
+          }
+        })
+      );
+
+      // Gán danh sách ảnh đã upload vào trường IMAGES trong hotelData
+      hotelData.IMAGES = uploadedImages;
+    }
+
+    const updateHotel = await HOTEL_MODEL.findByIdAndUpdate(
+      id,
+      {
+        ...hotelData,
+      },
+      { new: true }
+    );
+
+    return updateHotel;
+  }
 
   async deleteHotel(hotelId) {
     const result = await HOTEL_MODEL.findByIdAndUpdate(
@@ -172,14 +174,142 @@ async updateHotelById(id, hotelData) {
     }
   }
 
-  async getServiceInHotel(hotelId){
-    const service = await HOTEL_MODEL.findById(hotelId).select('SERVICES');
+  async getServiceInHotel(hotelId) {
+    const service = await HOTEL_MODEL.findById(hotelId).select("SERVICES");
     return service;
   }
 
-  async getHotelsName () {
-    return await HOTEL_MODEL.find({}, 'NAME');
+  async getHotelsName() {
+    return await HOTEL_MODEL.find({}, "NAME");
   }
+
+  async toggleAllServicesInGroup(hotelId, serviceGroup, status) {
+    // Tạo một object update cho tất cả các dịch vụ trong nhóm
+    const update = {};
+    const hotel = await HOTEL_MODEL.findById(hotelId);
+    if (!hotel) throw new Error("Hotel not found");
+
+    // Lặp qua từng dịch vụ con trong nhóm
+    for (const field in hotel.SERVICES[serviceGroup]) {
+      if (hotel.SERVICES[serviceGroup][field].enabled !== undefined) {
+        update[`SERVICES.${serviceGroup}.${field}.enabled`] = status;
+      }
+    }
+
+    const updatedHotel = await HOTEL_MODEL.findByIdAndUpdate(
+      hotelId,
+      { $set: update },
+      { new: true }
+    );
+
+    console.log(`Updated all services in ${serviceGroup} to ${status}`);
+    return updatedHotel;
+  }
+
+  async updateAllServiceFields(hotelId, services) {
+    try {
+      const update = {};
+      for (const serviceGroup in services) {
+        for (const serviceField in services[serviceGroup]) {
+          update[`SERVICES.${serviceGroup}.${serviceField}.enabled`] = services[serviceGroup][serviceField].enabled;
+        }
+      }
+  
+      const updatedHotel = await HOTEL_MODEL.findByIdAndUpdate(
+        hotelId,
+        { $set: update },
+        { new: true }
+      );
+  
+      if (!updatedHotel) {
+        throw new Error("Hotel not found");
+      }
+  
+      return updatedHotel;
+    } catch (error) {
+      console.error("Error updating all service fields:", error);
+      throw error;
+    }
+  }
+
+  async calculateAverageRatingForHotel(hotelId) {
+    const rooms = await ROOM_MODEL.find({ HOTEL_ID: hotelId }).select('_id');
+
+    // Tạo danh sách các ID của phòng
+    const roomIds = rooms.map(room => room._id);
+
+    // Tìm tất cả các đánh giá của các phòng thuộc khách sạn, với STATUS = true
+    const reviews = await REVIEW_MODEL.find({
+      ROOM_ID: { $in: roomIds },
+      STATUS: true
+    });
+
+    // Nếu không có đánh giá nào, trả về 0
+    if (reviews.length === 0) return 0;
+
+    // Tính toán số sao trung bình
+    const averageRating = reviews.reduce((acc, review) => acc + review.RATING, 0) / reviews.length;
+
+    return averageRating;
+  }
+
+  async getTopBookedHotels() {
+    const bookings = await BOOKING_MODEL.aggregate([
+      {
+        $match: { STATUS: "Booked" } // Chỉ lấy những booking có trạng thái thành công
+      },
+      {
+        $unwind: "$LIST_ROOMS" // Giải nén LIST_ROOMS để lấy từng ROOM_ID
+      },
+      {
+        $lookup: {
+          from: "rooms", // Kết nối với collection rooms
+          localField: "LIST_ROOMS.ROOM_ID",
+          foreignField: "_id",
+          as: "roomDetails"
+        }
+      },
+      {
+        $unwind: "$roomDetails" // Giải nén roomDetails để lấy HOTEL_ID
+      },
+      {
+        $group: {
+          _id: "$roomDetails.HOTEL_ID", // Nhóm theo HOTEL_ID
+          bookingCount: { $sum: 1 } // Đếm số lần đặt phòng thành công cho mỗi khách sạn
+        }
+      },
+      {
+        $sort: { bookingCount: -1 } // Sắp xếp theo số lượt đặt phòng giảm dần
+      },
+      {
+        $limit: 3 // Giới hạn chỉ lấy 3 khách sạn có lượt đặt nhiều nhất
+      },
+      {
+        $lookup: {
+          from: "hotels",
+          localField: "_id",
+          foreignField: "_id",
+          as: "hotelDetails"
+        }
+      },
+      {
+        $unwind: "$hotelDetails"
+      },
+      {
+        $project: {
+          _id: "$hotelDetails._id",
+          NAME: "$hotelDetails.NAME",
+          IMAGES: "$hotelDetails.IMAGES",
+          RATING: "$hotelDetails.RATING",
+          ADDRESS: "$hotelDetails.ADDRESS",
+          bookingCount: 1
+        }
+      }
+    ]);
+  
+    return bookings;
+  }
+  
 }
 
 module.exports = new HOTEL_SERVICE();
