@@ -238,12 +238,14 @@ class BOOKING_CONTROLLER {
     }
   }
 
-  async getMonthlyRevenue (req, res) {
+  async getRevenue (req, res) {
     try {
-      const { year } = req.query;
+      const { timeFrame, selectedDate, selectedMonth, selectedYear, hotelId } = req.query;
+
+      console.log(hotelId);
   
       // Gọi service để lấy dữ liệu doanh thu
-      const revenueData = await BOOKING_SERVICE.getMonthlyRevenue(year);
+      const revenueData = await BOOKING_SERVICE.getRevenue( timeFrame, selectedDate, selectedMonth, selectedYear, hotelId );
   
       return res.json(revenueData);
     } catch (error) {
@@ -251,6 +253,28 @@ class BOOKING_CONTROLLER {
       return res.status(500).json({ error: "Lỗi khi lấy dữ liệu doanh thu" });
     }
   }
+
+  async getBookingStatusData (req, res) {
+    try {
+      // Lấy các tham số từ query của request
+      const { timeFrame, selectedYear, selectedMonth, selectedDate, hotelId } = req.query;
+  
+      // Gọi hàm service để lấy dữ liệu đặt phòng
+      const bookingStatusData = await BOOKING_SERVICE.getBookingStatusData({
+        timeFrame,
+        selectedYear,
+        selectedMonth,
+        selectedDate, 
+        hotelId
+      });
+  
+      // Trả về dữ liệu cho client
+      return res.json( {data: bookingStatusData} );
+    } catch (error) {
+      return res.status(500).json({ message: "Lỗi khi lấy dữ liệu đặt phòng", error });
+    }
+  };
+  
 }
 
 module.exports = new BOOKING_CONTROLLER();

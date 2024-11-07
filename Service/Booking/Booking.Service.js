@@ -5,6 +5,7 @@ const ROOM_MODEL = require("../../Model/Room/Room.Model");
 const USER_MODEL = require("../../Model/User/User.Model");
 const MAIL_QUEUE = require("../../Utils/sendMail");
 const HOTEL_MODEL = require("../../Model/Hotel/Hotel.Model");
+const mongoose = require("mongoose");
 
 class BOOKING_SERVICE {
   async bookRoomNows(
@@ -269,7 +270,7 @@ class BOOKING_SERVICE {
           availability.AVAILABLE = false;
         }
         return availability;
-      })
+      });
 
       // Lưu các thay đổi
       await room.save();
@@ -280,14 +281,17 @@ class BOOKING_SERVICE {
 
   // Hàm lấy tất cả các booking của một người dùng
   async getBookingHistory(userId) {
-    const bookings = await BOOKING_MODEL.find({ USER_ID: userId }).populate({
-      path: "LIST_ROOMS.ROOM_ID",
-      populate: {
-        path: "HOTEL_ID", // Lấy thông tin khách sạn từ HOTEL_ID trong Room
-        select: "NAME ADDRESS",
-      },
-      select: "ROOM_NUMBER TYPE FLOOR PRICE_PERNIGHT IMAGES CUSTOM_ATTRIBUTES",
-    }).lean(); 
+    const bookings = await BOOKING_MODEL.find({ USER_ID: userId })
+      .populate({
+        path: "LIST_ROOMS.ROOM_ID",
+        populate: {
+          path: "HOTEL_ID", // Lấy thông tin khách sạn từ HOTEL_ID trong Room
+          select: "NAME ADDRESS",
+        },
+        select:
+          "ROOM_NUMBER TYPE FLOOR PRICE_PERNIGHT IMAGES CUSTOM_ATTRIBUTES",
+      })
+      .lean();
 
     if (!bookings || bookings.length === 0) {
       throw new Error("Không tìm thấy booking nào");
@@ -335,27 +339,57 @@ class BOOKING_SERVICE {
     return booking;
   }
 
-  async getMonthlyRevenue( year ) {
-    const hotels = await HOTEL_MODEL.find({ IS_DELETED: false }).lean();
+  async getRevenue(
+    timeFrame,
+    selectedDate,
+    selectedMonth,
+    selectedYear,
+    hotelId
+  ) {
+    // Lấy danh sách các khách sạn
+    const hotels = await HOTEL_MODEL.find({
+      STATE: true,
+      IS_DELETED: false,
+    }).lean();
 
-    // Tạo mảng doanh thu theo tháng cho tất cả các khách sạn
-    const hotelRevenues = hotels.map((hotel) => ({
-      hotelId: hotel._id.toString(),
-      hotelName: hotel.NAME,
-      revenue: Array(12).fill(0),
-    }));
+    // Tạo mảng doanh thu cho tất cả các khách sạn hoặc chỉ khách sạn có `hotelId`
+    const hotelRevenues = hotels
+      .filter((hotel) => !hotelId || hotel._id.toString() === hotelId)
+      .map((hotel) => ({
+        hotelId: hotel._id.toString(),
+        hotelName: hotel.NAME,
+        revenue: timeFrame === "day" ? {} : Array(12).fill(0),
+      }));
 
-    // Lấy tất cả các booking trong năm đã "Booked"
+    // Xác định điều kiện `$match` ban đầu
+    const matchStage = { STATUS: "Booked", $expr: { $and: [] } };
+
+    // Thêm điều kiện lọc cho năm
+    if (selectedYear) {
+      matchStage.$expr.$and.push({
+        $eq: [{ $year: "$createdAt" }, parseInt(selectedYear)],
+      });
+    }
+
+    // Thêm điều kiện lọc cho tháng
+    if (timeFrame === "month" && selectedMonth) {
+      matchStage.$expr.$and.push({
+        $eq: [{ $month: "$createdAt" }, parseInt(selectedMonth)],
+      });
+    }
+
+    // Thêm điều kiện lọc cho ngày
+    if (timeFrame === "day" && selectedDate && selectedMonth) {
+      matchStage.$expr.$and.push(
+        { $eq: [{ $dayOfMonth: "$createdAt" }, parseInt(selectedDate)] },
+        { $eq: [{ $month: "$createdAt" }, parseInt(selectedMonth)] }
+      );
+    }
+
+    // Aggregation pipeline để lấy dữ liệu doanh thu
     const bookings = await BOOKING_MODEL.aggregate([
-      {
-        $match: {
-          $expr: { $eq: [{ $year: "$createdAt" }, parseInt(year)] },
-          STATUS: "Booked",
-        },
-      },
-      {
-        $unwind: "$LIST_ROOMS",
-      },
+      { $match: matchStage },
+      { $unwind: "$LIST_ROOMS" },
       {
         $lookup: {
           from: "rooms",
@@ -364,46 +398,170 @@ class BOOKING_SERVICE {
           as: "room",
         },
       },
-      {
-        $unwind: "$room",
-      },
+      { $unwind: { path: "$room", preserveNullAndEmptyArrays: true } },
+      ...(hotelId
+        ? [
+            {
+              $match: { "room.HOTEL_ID": new mongoose.Types.ObjectId(hotelId) },
+            },
+          ]
+        : []),
       {
         $group: {
           _id: {
-            month: { $month: "$createdAt" },
-            hotelId: "$room.HOTEL_ID",
+            day: timeFrame === "day" ? { $dayOfMonth: "$createdAt" } : null,
+            month: timeFrame !== "year" ? { $month: "$createdAt" } : null,
+            year: { $year: "$createdAt" },
+            hotelId: { $toString: "$room.HOTEL_ID" },
           },
           totalRevenue: { $sum: "$LIST_ROOMS.TOTAL_PRICE_FOR_ROOM" },
         },
       },
     ]);
 
-    // Tính tổng doanh thu theo tháng cho từng khách sạn
+    bookings.sort((a, b) => {
+      if (a._id.year !== b._id.year) {
+        return a._id.year - b._id.year; // So sánh năm
+      }
+      if (a._id.month !== b._id.month) {
+        return a._id.month - b._id.month; // So sánh tháng
+      }
+      return a._id.day - b._id.day; // So sánh ngày
+    });
+
+    // Tính tổng doanh thu theo khung thời gian cho từng khách sạn
     bookings.forEach((booking) => {
-      const month = booking._id.month - 1;
       const hotel = hotelRevenues.find(
-        (h) => h.hotelId === booking._id.hotelId.toString()
+        (h) => h.hotelId === booking._id.hotelId
       );
+
       if (hotel) {
-        hotel.revenue[month] += booking.totalRevenue;
+        if (timeFrame === "day") {
+          const dayKey = `${booking._id.year}-${booking._id.month}-${booking._id.day}`;
+          hotel.revenue[dayKey] =
+            (hotel.revenue[dayKey] || 0) + booking.totalRevenue;
+        } else if (timeFrame === "month") {
+          const month = booking._id.month - 1;
+          hotel.revenue[month] += booking.totalRevenue;
+        } else if (timeFrame === "year") {
+          hotel.revenue[0] += booking.totalRevenue;
+        }
       }
     });
 
-    // Tính tổng doanh thu của tất cả các khách sạn
-    const monthlyRevenue = Array(12).fill(0);
-    hotelRevenues.forEach((hotel) => {
-      hotel.revenue.forEach((revenue, index) => {
-        monthlyRevenue[index] += revenue;
+    // Tổng hợp doanh thu cho tất cả các khách sạn theo khung thời gian
+    let totalRevenue = 0;
+    if (timeFrame === "day") {
+      const dailyRevenue = {};
+      hotelRevenues.forEach((hotel) => {
+        for (const [day, revenue] of Object.entries(hotel.revenue)) {
+          dailyRevenue[day] = (dailyRevenue[day] || 0) + revenue;
+        }
       });
-    });
+      totalRevenue = Object.values(dailyRevenue).reduce(
+        (acc, curr) => acc + curr,
+        0
+      );
+      return { totalRevenue, dailyRevenue, hotelRevenues };
+    } else if (timeFrame === "month") {
+      const monthlyRevenue = Array(12).fill(0);
+      hotelRevenues.forEach((hotel) => {
+        hotel.revenue.forEach((revenue, index) => {
+          monthlyRevenue[index] += revenue;
+        });
+      });
+      totalRevenue = monthlyRevenue.reduce((acc, curr) => acc + curr, 0);
+      return { totalRevenue, monthlyRevenue, hotelRevenues };
+    } else if (timeFrame === "year") {
+      const yearlyRevenue = hotelRevenues.reduce(
+        (acc, hotel) => acc + hotel.revenue[0],
+        0
+      );
+      return {
+        totalRevenue: yearlyRevenue,
+        yearlyRevenue: [yearlyRevenue],
+        hotelRevenues,
+      };
+    }
+  }
 
-    const totalRevenue = monthlyRevenue.reduce((acc, curr) => acc + curr, 0);
+  async getBookingStatusData({
+    timeFrame,
+    selectedYear,
+    selectedMonth,
+    selectedDate,
+    hotelId,
+  }) {
+    const matchStage = { $match: {} };
 
-    return {
-      totalRevenue,
-      monthlyRevenue,
-      hotelRevenues,
-    };
+    // Điều kiện cho khung thời gian theo ngày (bao gồm ngày, tháng, năm và giờ UTC)
+    if (timeFrame === "day" && selectedDate && selectedMonth && selectedYear) {
+      matchStage.$match.createdAt = {
+        $gte: new Date(
+          `${selectedYear}-${selectedMonth}-${selectedDate}T00:00:00.000Z`
+        ),
+        $lt: new Date(
+          `${selectedYear}-${selectedMonth}-${selectedDate}T23:59:59.999Z`
+        ),
+      };
+    } else if (timeFrame === "month" && selectedYear && selectedMonth) {
+      matchStage.$match.createdAt = {
+        $gte: new Date(`${selectedYear}-${selectedMonth}-01T00:00:00.000Z`),
+        $lt: new Date(`${selectedYear}-${selectedMonth}-31T23:59:59.999Z`),
+      };
+    } else if (timeFrame === "year" && selectedYear) {
+      matchStage.$match.createdAt = {
+        $gte: new Date(`${selectedYear}-01-01T00:00:00.000Z`),
+        $lt: new Date(`${selectedYear}-12-31T23:59:59.999Z`),
+      };
+    }
+
+    // Pipeline tiếp tục với lookup và group
+    const bookingStatusData = await BOOKING_MODEL.aggregate([
+      matchStage,
+      { $unwind: "$LIST_ROOMS" },
+      {
+        $lookup: {
+          from: "rooms",
+          localField: "LIST_ROOMS.ROOM_ID",
+          foreignField: "_id",
+          as: "room",
+        },
+      },
+      { $unwind: { path: "$room", preserveNullAndEmptyArrays: true } },
+      ...(hotelId
+        ? [
+            {
+              $match: { "room.HOTEL_ID": new mongoose.Types.ObjectId(hotelId) },
+            },
+          ]
+        : []),
+      {
+        $group: {
+          _id: {
+            status: "$STATUS",
+            date: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id.date",
+          successfulCount: {
+            $sum: { $cond: [{ $eq: ["$_id.status", "Booked"] }, "$count", 0] },
+          },
+          canceledCount: {
+            $sum: {
+              $cond: [{ $eq: ["$_id.status", "Canceled"] }, "$count", 0],
+            },
+          },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    return bookingStatusData;
   }
 }
 
