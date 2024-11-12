@@ -64,6 +64,16 @@ const BookingSchema = new Schema(
       type: Boolean, 
       default: false 
     },
+    VOUCHER: {
+      VOUCHER_CODE: {
+        type: String,
+        default: null,
+      },
+      DISCOUNT_AMOUNT: {
+        type: Number,
+        default: 0,
+      },
+    },
   },
   {
     versionKey: false,

@@ -256,7 +256,9 @@ class HOTEL_SERVICE {
   async getTopBookedHotels() {
     const bookings = await BOOKING_MODEL.aggregate([
       {
-        $match: { STATUS: "Booked" } // Chỉ lấy những booking có trạng thái thành công
+        $match: {
+          STATUS: { $in: ["Booked", "CheckedOut"] } 
+        }
       },
       {
         $unwind: "$LIST_ROOMS" // Giải nén LIST_ROOMS để lấy từng ROOM_ID

@@ -7,6 +7,7 @@ const bookingRouter = require('./Booking');
 const paymentRouter = require('./PaymentVNPay');
 const reviewRouter = require('./Review');
 const messageRouter = require('./Message');
+const voucherRouter = require('./Voucher');
 
 function route(app) {
     app.use('/users', userRouter);
@@ -17,6 +18,7 @@ function route(app) {
     app.use('/payments', paymentRouter);
     app.use('/reviews', reviewRouter);
     app.use('/messages', messageRouter);
+    app.use('/vouchers', voucherRouter);
 }
 
 module.exports = route;

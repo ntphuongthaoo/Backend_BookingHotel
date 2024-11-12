@@ -1,6 +1,6 @@
 const BOOKING_SERVICE = require("../../Service/Booking/Booking.Service");
 const CART_SERVICE = require("../../Service/Cart/Cart.Service");
-const ROOM_MODEL = require("../../Model/Room/Room.Model")
+const ROOM_MODEL = require("../../Model/Room/Room.Model");
 
 class BOOKING_CONTROLLER {
   // Đặt phòng trực tiếp
@@ -34,8 +34,8 @@ class BOOKING_CONTROLLER {
     try {
       console.log(req.body);
       const userId = req.user_id; // Lấy ID người dùng từ request
-      const { roomDetails, roomsDetails, airportPickup } = req.body; // Lấy thêm biến airportPickup
-  
+      const { roomDetails, roomsDetails, airportPickup, VOUCHER } = req.body; // Lấy thêm biến VOUCHER
+    
       // Kiểm tra xem là booking 1 phòng hay nhiều phòng
       if (roomDetails) {
         // Nếu là 1 phòng
@@ -43,7 +43,8 @@ class BOOKING_CONTROLLER {
           userId,
           roomDetails,
           "Website",
-          airportPickup // Truyền biến airportPickup vào service
+          airportPickup, // Truyền biến airportPickup vào service
+          VOUCHER // Truyền VOUCHER vào service
         );
         await CART_SERVICE.removeBookedRooms(userId, [roomDetails.ROOM_ID]);
         return res.status(200).json({
@@ -57,10 +58,11 @@ class BOOKING_CONTROLLER {
           userId,
           roomsDetails,
           "Website",
-          airportPickup // Truyền biến airportPickup vào service
+          airportPickup, // Truyền biến airportPickup vào service
+          VOUCHER // Truyền VOUCHER vào service
         );
         const roomIds = roomsDetails.map((room) => room.ROOM_ID);
-  
+    
         // Xóa các phòng khỏi giỏ hàng sau khi đặt thành công
         await CART_SERVICE.removeBookedRooms(userId, roomIds);
         return res.status(200).json({
@@ -84,6 +86,7 @@ class BOOKING_CONTROLLER {
     }
   }
   
+
   async getBookingHistory(req, res) {
     const userId = req.user_id;
     try {
@@ -169,7 +172,10 @@ class BOOKING_CONTROLLER {
       }
 
       // Gọi hàm updateBookingStatus từ service
-      const response = await BOOKING_SERVICE.updateBookingStatus({ bookingId, status });
+      const response = await BOOKING_SERVICE.updateBookingStatus({
+        bookingId,
+        status,
+      });
 
       // Kiểm tra kết quả trả về từ service
       if (response.statusCode === 200) {
@@ -193,14 +199,14 @@ class BOOKING_CONTROLLER {
       const limit = parseInt(req.query.limit, 10) || 10;
       const hotelId = req.query.hotelId;
       const role = req.user.role; // Lấy vai trò từ user đã được xác thực
-  
+
       const { bookings, totalBookings } = await BOOKING_SERVICE.getAllBookings(
         page,
         limit,
         hotelId,
         role
       );
-  
+
       res.status(200).json({
         success: true,
         bookings,
@@ -216,37 +222,58 @@ class BOOKING_CONTROLLER {
       });
     }
   }
-  
-  
-  async cancelBooking (req, res) {
+
+  async cancelBooking(req, res) {
     try {
       const { bookingId } = req.params;
-  
+
       const updatedBooking = await BOOKING_SERVICE.cancelBooking(bookingId);
-  
+
       res.status(200).json({
         success: true,
-        message: 'Đặt phòng đã được hủy.',
+        message: "Đặt phòng đã được hủy.",
         booking: updatedBooking,
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: 'Không thể hủy đặt phòng.',
+        message: "Không thể hủy đặt phòng.",
         error: error.message,
       });
     }
   }
 
-  async getRevenue (req, res) {
+  async updateStatus(req, res) {
+    const { bookingId } = req.params;
+    const { status } = req.body;
+
     try {
-      const { timeFrame, selectedDate, selectedMonth, selectedYear, hotelId } = req.query;
+      const updatedBooking = await BOOKING_SERVICE.updateStatus({
+        bookingId,
+        status,
+      });
+      res.status(200).json({ success: true, data: updatedBooking });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  async getRevenue(req, res) {
+    try {
+      const { timeFrame, selectedDate, selectedMonth, selectedYear, hotelId } =
+        req.query;
 
       console.log(hotelId);
-  
+
       // Gọi service để lấy dữ liệu doanh thu
-      const revenueData = await BOOKING_SERVICE.getRevenue( timeFrame, selectedDate, selectedMonth, selectedYear, hotelId );
-  
+      const revenueData = await BOOKING_SERVICE.getRevenue(
+        timeFrame,
+        selectedDate,
+        selectedMonth,
+        selectedYear,
+        hotelId
+      );
+
       return res.json(revenueData);
     } catch (error) {
       console.error("Lỗi khi lấy dữ liệu doanh thu:", error);
@@ -254,27 +281,29 @@ class BOOKING_CONTROLLER {
     }
   }
 
-  async getBookingStatusData (req, res) {
+  async getBookingStatusData(req, res) {
     try {
       // Lấy các tham số từ query của request
-      const { timeFrame, selectedYear, selectedMonth, selectedDate, hotelId } = req.query;
-  
+      const { timeFrame, selectedYear, selectedMonth, selectedDate, hotelId } =
+        req.query;
+
       // Gọi hàm service để lấy dữ liệu đặt phòng
       const bookingStatusData = await BOOKING_SERVICE.getBookingStatusData({
         timeFrame,
         selectedYear,
         selectedMonth,
-        selectedDate, 
-        hotelId
+        selectedDate,
+        hotelId,
       });
-  
+
       // Trả về dữ liệu cho client
-      return res.json( {data: bookingStatusData} );
+      return res.json({ data: bookingStatusData });
     } catch (error) {
-      return res.status(500).json({ message: "Lỗi khi lấy dữ liệu đặt phòng", error });
+      return res
+        .status(500)
+        .json({ message: "Lỗi khi lấy dữ liệu đặt phòng", error });
     }
-  };
-  
+  }
 }
 
 module.exports = new BOOKING_CONTROLLER();

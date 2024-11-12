@@ -5,6 +5,7 @@ const ROOM_MODEL = require("../../Model/Room/Room.Model");
 const USER_MODEL = require("../../Model/User/User.Model");
 const MAIL_QUEUE = require("../../Utils/sendMail");
 const HOTEL_MODEL = require("../../Model/Hotel/Hotel.Model");
+const REVIEW_MODEL = require("../../Model/Review/Review.Model");
 const mongoose = require("mongoose");
 
 class BOOKING_SERVICE {
@@ -12,40 +13,40 @@ class BOOKING_SERVICE {
     userId,
     roomsDetails,
     bookingType = "Website",
-    airportPickup = false
+    airportPickup = false,
+    voucher = null // Nhận VOUCHER làm tham số đầu vào
   ) {
     let listRooms = [];
     let totalPrice = 0;
     const airportPickupPrice = 200000; // Giá cố định cho dịch vụ đưa rước sân bay
-
+  
     // Kiểm tra nếu chỉ có một phòng (object) hoặc nhiều phòng (array)
     const isSingleRoom = !Array.isArray(roomsDetails);
-
+  
     if (isSingleRoom) {
-      // Trường hợp chỉ có một phòng
       roomsDetails = [roomsDetails]; // Chuyển object thành mảng để xử lý dễ hơn
     }
-
+  
     for (const roomDetails of roomsDetails) {
       const roomId = roomDetails.roomId || roomDetails.ROOM_ID;
       const room = await ROOM_SERVICE.getRoomsById(roomId);
-
+  
       if (!room) {
         throw new Error("Phòng không tồn tại.");
       }
-
+  
       // Tính số ngày ở
       const checkInDate = new Date(roomDetails.startDate);
       const checkOutDate = new Date(roomDetails.endDate);
-      const days = (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24); // Tính số ngày ở
-
+      const days = (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24);
+  
       if (days <= 0) {
         throw new Error("Ngày trả phòng phải lớn hơn ngày nhận phòng.");
       }
-
+  
       // Tính tổng giá cho từng phòng
       const totalPriceRoom = days * room.PRICE_PERNIGHT;
-
+  
       // Thêm phòng vào danh sách phòng trong booking
       listRooms.push({
         ROOM_ID: roomId,
@@ -53,34 +54,41 @@ class BOOKING_SERVICE {
         END_DATE: checkOutDate,
         TOTAL_PRICE_FOR_ROOM: totalPriceRoom,
       });
-
+  
       // Cộng tổng giá vào tổng giá booking
       totalPrice += totalPriceRoom;
     }
-
+  
     // Nếu dịch vụ đưa rước sân bay được chọn, thêm giá dịch vụ vào tổng giá
     if (airportPickup) {
       totalPrice += airportPickupPrice;
     }
-
-    // Tạo booking mới với thông tin phòng
+  
+    // Áp dụng giảm giá từ voucher nếu có
+    const finalTotalPrice = voucher
+      ? totalPrice - voucher.DISCOUNT_AMOUNT
+      : totalPrice;
+  
+    // Tạo booking mới với thông tin phòng và voucher
     const booking = new BOOKING_MODEL({
       USER_ID: userId,
-      LIST_ROOMS: listRooms, // Danh sách các phòng đã đặt
-      TOTAL_PRICE: totalPrice, // Tổng giá cho tất cả các phòng
+      LIST_ROOMS: listRooms,
+      TOTAL_PRICE: finalTotalPrice,
       STATUS: "NotYetPaid",
-      BOOKING_TYPE: bookingType, // Loại đặt phòng (ví dụ: Website)
-      CUSTOMER_PHONE: roomsDetails[0].CUSTOMER_PHONE, // Thông tin khách hàng (lấy từ phòng đầu tiên)
+      BOOKING_TYPE: bookingType,
+      CUSTOMER_PHONE: roomsDetails[0].CUSTOMER_PHONE,
       CUSTOMER_NAME: roomsDetails[0].CUSTOMER_NAME,
       CITIZEN_ID: roomsDetails[0].CITIZEN_ID,
-      AIRPORT_PICKUP: airportPickup, // Lưu thông tin dịch vụ đưa rước sân bay
+      AIRPORT_PICKUP: airportPickup,
+      VOUCHER: voucher // Lưu voucher vào booking nếu có
     });
-
+  
     // Lưu booking vào database
     await booking.save();
-
+  
     return booking;
   }
+  
 
   async getBookingHistoryByUserId(userId) {
     const bookings = await BOOKING_MODEL.find({ USER_ID: userId });
@@ -297,6 +305,33 @@ class BOOKING_SERVICE {
       throw new Error("Không tìm thấy booking nào");
     }
 
+    const roomIds = [];
+    const bookingIds = bookings.map((booking) => booking._id);
+
+    for (const booking of bookings) {
+      for (const room of booking.LIST_ROOMS) {
+        roomIds.push(room.ROOM_ID._id);
+      }
+    }
+
+    // Lấy tất cả các review phù hợp với roomId và bookingId của user
+    const reviews = await REVIEW_MODEL.find({
+      roomId: { $in: roomIds },
+      bookingId: { $in: bookingIds },
+      USER_ID: userId,
+    }).lean();
+
+    // Tạo một map để nhanh chóng kiểm tra review tồn tại theo roomId và bookingId
+    const reviewMap = new Map(
+      reviews.map((review) => [`${review.roomId}_${review.bookingId}`, true])
+    );
+
+    // Cập nhật thuộc tính hasReview dựa trên reviewMap
+    for (const booking of bookings) {
+      for (const room of booking.LIST_ROOMS) {
+        room.hasReview = reviewMap.has(`${room.ROOM_ID._id}_${booking._id}`);
+      }
+    }
     return bookings;
   }
 
@@ -318,6 +353,7 @@ class BOOKING_SERVICE {
         populate: { path: "HOTEL_ID", select: "NAME ADDRESS" },
       })
       .populate("USER_ID")
+      .select("VOUCHER")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -334,6 +370,18 @@ class BOOKING_SERVICE {
     }
 
     booking.STATUS = "Canceled";
+    await booking.save();
+
+    return booking;
+  }
+
+  async updateStatus({ bookingId, status }) {
+    // Tìm booking bằng ID
+    const booking = await BOOKING_MODEL.findById(bookingId);
+    if (!booking) throw new Error("Không tìm thấy đơn đặt phòng");
+
+    // Cập nhật trạng thái của đơn đặt phòng
+    booking.STATUS = status;
     await booking.save();
 
     return booking;
